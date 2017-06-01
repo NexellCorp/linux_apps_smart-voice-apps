@@ -4,8 +4,11 @@
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef ANDROID
+#else
 #include <vector>
 #include <iostream>
+#endif
 #include <fcntl.h>
 #include <assert.h>
 #include <sys/time.h>

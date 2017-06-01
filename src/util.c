@@ -76,11 +76,14 @@ pid_t gettid(void)
 	return syscall(__NR_gettid);
 }
 
+#if !defined(ANDROID)
 #include <execinfo.h>
+#endif
 
 #define BT_ARRAY_SIZE	256
 void sig_handler(int sig)
 {
+#if !defined(ANDROID)
 	void *array[BT_ARRAY_SIZE];
 	size_t size;
 
@@ -88,7 +91,7 @@ void sig_handler(int sig)
 	fprintf(stderr, "\n\nError: signal %d:\n", sig);
 	/* #include <execinfo.h> */
 	backtrace_symbols_fd(array, size, 2);
-
+#endif
 	signal(SIGSEGV, SIG_DFL);
 	raise(SIGSEGV);
 }

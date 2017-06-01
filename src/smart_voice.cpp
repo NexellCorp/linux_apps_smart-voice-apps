@@ -272,8 +272,10 @@ static void *audio_agc_stream(void *data)
 	long long t_min = 1000 * 1000;
 	long long t_max = 0, t_tot = 0;
 
+#if !defined(ANDROID)
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+#endif
 	pthread_cleanup_push(audio_clean, (void *)Stream);
 
 	/*
@@ -409,7 +411,8 @@ static void *audio_aec_stream(void *data)
 	unsigned int type = Stream->GetType();
 	int inputs = Stream->GetInputStreamNums();
 
-	unsigned char *InPtr[inputs] = { NULL, };
+	unsigned char *InPtr[inputs];// = { NULL, };
+	memset( InPtr, 0, inputs*sizeof(unsigned char*) );
 	unsigned char *OutPtr = NULL;
 
 	int chs = Stream->GetChannels();
@@ -452,8 +455,10 @@ static void *audio_aec_stream(void *data)
 
 	memset(Dummy, 0, 256*sizeof(int));
 
+#if !defined(ANDROID)
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+#endif
 	pthread_cleanup_push(audio_clean, (void *)Stream);
 
 __reinit:
@@ -668,8 +673,10 @@ static void *audio_capture(void *data)
 	int bytes = Stream->GetPeriodBytes();
 	bool err;
 
+#if !defined(ANDROID)
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+#endif
 
 __reinit:
 	pr_main("%10s: Init\n", Stream->GetName());
@@ -753,8 +760,10 @@ static void *audio_resample(void *data)
 	Stream->WavFileNum = 1;
 	bool is_DumpFile = false;
 
+#if !defined(ANDROID)
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+#endif
 	pthread_cleanup_push(audio_clean, (void *)Stream);
 
 __reinit:
@@ -1181,6 +1190,15 @@ static int parse_options(int argc, char **argv,
 	option->play.card = -1;
 	option->play.dev = -1;
 
+#ifdef ANDROID
+	/* default i2s device */
+	option->i2s.card = 1;
+	option->i2s.dev = 0;
+
+	/* default pdm(spi) device */
+	option->pdm.card = 2;
+	option->pdm.dev = 0;
+#else
 	/* default i2s device */
 	option->i2s.card = 0;
 	option->i2s.dev = 2;
@@ -1188,6 +1206,7 @@ static int parse_options(int argc, char **argv,
 	/* default pdm(spi) device */
 	option->pdm.card = 0;
 	option->pdm.dev = 4;
+#endif
 
 	/* test to validate */
 	option->test_time = 0;
@@ -1441,17 +1460,29 @@ int main(int argc, char **argv)
 err_threads:
 
 #ifdef SUPPORT_STREAM_MONITOR
+#ifdef ANDROID
+	ret = pthread_kill(th_monitor,SIGUSR1);
+#else
 	ret = pthread_cancel(th_monitor);
+#endif
 	pthread_join(th_monitor, NULL);
 #endif
 #ifdef SUPPORT_RATE_DETECTOR
+#ifdef ANDROID
+	ret = pthread_kill(th_event,SIGUSR1);
+#else
 	ret = pthread_cancel(th_event);
+#endif
 	pthread_join(th_event, NULL);
 #endif
 
  	/* Free attribute and wait for the other threads */
 	for (i = 0; i < size; i++) {
+#ifdef ANDROID
+		ret = pthread_kill(s_threads[i].hTh, SIGUSR1);
+#else
 		ret = pthread_cancel(s_threads[i].hTh);
+#endif
 		pthread_join(s_threads[i].hTh, (void **)&ret);
 		pr_main("EXIT %d:%10s\n",
 			i, s_threads[i].Stream->GetName());
