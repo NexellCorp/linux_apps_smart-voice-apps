@@ -7,8 +7,8 @@
 #	ALSA_ASOUND=y	: use alsa asound library (default tiny alsa)
 #
 
-CROSS_COMPILE := arm-linux-gnueabihf-
-#CROSS_COMPILE := arm-poky-linux-gnueabi-
+#CROSS_COMPILE := arm-linux-gnueabihf-
+CROSS_COMPILE := arm-poky-linux-gnueabi-
 
 ALSA_ASOUND :=
 AEC_PCMOUT  :=
@@ -19,14 +19,14 @@ CPP = $(CROSS_COMPILE)g++
 
 CFLAGS  :=  -Wall -std=c++11
 CFLAGS  +=  -mfloat-abi=hard
-#CFLAGS  +=  --sysroot=/opt/poky/2.1.2/sysroots/cortexa9hf-neon-poky-linux-gnueabi
+CFLAGS  +=  --sysroot=/opt/poky/2.1.2/sysroots/cortexa9hf-neon-poky-linux-gnueabi
 
 ifeq ($(AEC_PCMOUT),y)
 CFLAGS  += -DSUPPORT_AEC_PCMOUT
 endif
 
 LDFLAGS  += -mfloat-abi=hard
-LDFLAGS  += -static # statically linked
+#LDFLAGS  += -static # statically linked
 
 ifeq ($(DEBUG),y)
 CFLAGS  += -DDEBUG
