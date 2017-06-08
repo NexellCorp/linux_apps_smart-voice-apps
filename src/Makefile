@@ -50,9 +50,9 @@ ifeq ($(AEC_PCMOUT),y)
 LIBS	:= $(LIB_DIR)/libPreproc1.a
 endif
 
-LIBS	+= $(LIB_DIR)/libtinyalsa.a
 LIBS	+= $(LIB_DIR)/libagcpdm.a
 LIBS	+= $(LIB_DIR)/libresample.a
+LIBS	+= libtinyalsa.a
 LIBS	+= -lpthread
 LIBS	+= -lm
 ifeq ($(ALSA_ASOUND),y)
