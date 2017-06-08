@@ -6,8 +6,17 @@ extern "C" {
 #endif
 
 typedef struct {
-	int GeneratedFilterBlock_states[63];
+	int GeneratedFilterBlock_states[256];
 } pdmLPF_STATDEF;
+
+typedef struct {
+	int StatesBuff[256];
+	int TapDelayIn;
+	int PhaseIdx;
+	int CoeffIdx;
+	int OutIdx;
+	int Sums;
+} pdmHBF_STATDEF;
 
 typedef struct {
 	int frames;
@@ -89,10 +98,14 @@ void pdm_Run(pdm_STATDEF *pdm_st, short *outbuf, int *inbuf, int agc_dB);
  *
  * @be: swap to big-endian
  *
+ * @fast: fast mode
+ *
  * Convert pdm raw data (8192bytes) to interleved pcm format data(2048bytes)
  */
 void pdm_Run_channel(pdm_STATDEF *pdm_st, short *outbuf, int *inbuf,
-			int agc_dB, int ch, int swap);
+			int agc_dB, int ch, int swap, int fast);
+
+
 #if __cplusplus
 }
 #endif

@@ -339,30 +339,23 @@ __reinit:
 
 #if 0
 		int pdm_chs = 2;
-		bool be = true;
-
-		if (!be)
-			swap_16(InPtr, i_bytes);
+		int fast_mode = 0;
+		int swap = 0;
 
 		/* PDM OUT [L0/R0/L1/R1] -> PCM [L0/R0/L1/R1] */
-		pdm_Run_channel(&pdm_st, (short int*)OutPtr, (int*)InPtr, agc_dB, pdm_chs, be);
-
+		pdm_Run_channel(&pdm_st, (short int*)OutPtr, (int*)InPtr, agc_dB, pdm_chs, swap, fast_mode);
 		END_TIMESTAMP_US(ts, td);
 
 		/* for SPLIT copy  [L0/R0/L1/R1] -> [L0/R0 .....][L1/R1 ....]*/
 		if (pdm_chs > 2) {
 			int length = o_bytes/2;
-
 			agc_split((int*)OutPtr, tmp[0], tmp[1], o_bytes);
 			for (int i = 0; i < 2; i++) {
 				unsigned char *dst = OutPtr + (i * length);
-
 				memcpy(dst, tmp[i], length);
 			}
 		}
 #else
-		swap_16(InPtr, i_bytes);
-
 		/* PDM OUT [L0/R0/L1/R1] -> PCM [L0/R0/L1/R1] */
 		pdm_Run(&pdm_st, (short int*)OutPtr, (int*)InPtr, agc_dB);
 
@@ -1192,11 +1185,11 @@ static int parse_options(int argc, char **argv,
 
 #ifdef ANDROID
 	/* default i2s device */
-	option->i2s.card = 1;
+	option->i2s.card = 2;
 	option->i2s.dev = 0;
 
 	/* default pdm(spi) device */
-	option->pdm.card = 2;
+	option->pdm.card = 1;
 	option->pdm.dev = 0;
 #else
 	/* default i2s device */
