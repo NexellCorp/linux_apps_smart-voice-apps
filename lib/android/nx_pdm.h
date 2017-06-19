@@ -1,6 +1,10 @@
 #ifndef NX_PDM_H
 #define NX_PDM_H
 
+#define AGCPDM_MAJOR_VER	(0)
+#define AGCPDM_MINOR_VER	(9)
+#define AGCPDM_REV			(0)
+
 #if __cplusplus
 extern "C" {
 #endif
@@ -46,6 +50,7 @@ void pdm_Init(pdm_STATDEF *pdm_STATDEF);
 /**
  * pdm_Run - covert 4 channel pdm raw data to 4 channel pcm data
  *
+ *
  * @pdm_st: pointer to an pdm_STATDEF structure
  *
  * @outbuf: converted pcm data, data buffer size must be 2048 bytes,
@@ -62,6 +67,7 @@ void pdm_Init(pdm_STATDEF *pdm_STATDEF);
  * @agc_dB: pcm data output gain value
  *
  * Convert pdm raw data (8192bytes) to interleved pcm format data(2048bytes)
+ * This function same as pdm_Run_channel( pdm_st, outbuf, inbuf, agc_dB, 4, 0, 0 ).
  */
 void pdm_Run(pdm_STATDEF *pdm_st, short *outbuf, int *inbuf, int agc_dB);
 
@@ -92,7 +98,7 @@ void pdm_Run(pdm_STATDEF *pdm_st, short *outbuf, int *inbuf, int agc_dB);
  *		L0[1B]/R0[1B]/L1[1B]/R1[1B]/......
  *		.....
  *
- * @agc_dB: pcm data output gain value, if 0 disabled auto gain control
+ * @agc_dB: pcm data output gain value
  *
  * @channels: pdm raw data channel count to convert pcm data, support 1 ~ 4 channel
  *
@@ -105,6 +111,12 @@ void pdm_Run(pdm_STATDEF *pdm_st, short *outbuf, int *inbuf, int agc_dB);
 void pdm_Run_channel(pdm_STATDEF *pdm_st, short *outbuf, int *inbuf,
 			int agc_dB, int ch, int swap, int fast);
 
+
+/**
+ * pdm_GetVersion - get version
+ *
+ */
+void pdm_GetVersion( int *major, int *minor, int *rev );
 
 #if __cplusplus
 }

@@ -12,7 +12,8 @@ CROSS_COMPILE := arm-poky-linux-gnueabi-
 
 ALSA_ASOUND :=
 AEC_PCMOUT  :=
-LIB_DIR := ../lib
+INC_DIR := ../lib/hf/
+LIB_DIR := ../lib/hf/
 
 CC  = $(CROSS_COMPILE)gcc
 CPP = $(CROSS_COMPILE)g++
@@ -35,24 +36,20 @@ CFLAGS  += -fno-omit-frame-pointer
 CFLAGS  += -fstack-protector-all
 LDFLAGS += -rdynamic # '-rdynamic' or '-Wl,export-dynamic'
 LDFLAGS += -static
-CFLAGS  += -I $(LIB_DIR)
+CFLAGS  += -I $(INC_DIR) -I ../lib
 else
 CFLAGS  += -O2
 CFLAGS  += -fno-omit-frame-pointer
-CFLAGS  += -I $(LIB_DIR)
+CFLAGS  += -I $(INC_DIR) -I ../lib
 endif
 
 ifneq ($(ALSA_ASOUND),y)
 CFLAGS  += -DTINY_ALSA
 endif
 
-ifeq ($(AEC_PCMOUT),y)
-LIBS	:= $(LIB_DIR)/libPreproc1.a
-endif
-
+LIBS	+= ./libtinyalsa.a
+LIBS	+= ../lib/libresample.a
 LIBS	+= $(LIB_DIR)/libagcpdm.a
-LIBS	+= $(LIB_DIR)/libresample.a
-LIBS	+= libtinyalsa.a
 LIBS	+= -lpthread
 LIBS	+= -lm
 ifeq ($(ALSA_ASOUND),y)
