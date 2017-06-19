@@ -47,7 +47,7 @@ ifneq ($(ALSA_ASOUND),y)
 CFLAGS  += -DTINY_ALSA
 endif
 
-LIBS	+= ./libtinyalsa.a
+LIBS	+= ../lib/libtinyalsa.a
 LIBS	+= ../lib/libresample.a
 LIBS	+= $(LIB_DIR)/libagcpdm.a
 LIBS	+= -lpthread
