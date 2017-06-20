@@ -13,7 +13,8 @@ LOCAL_SRC_FILES:= \
 LOCAL_C_INCLUDES += \
 	frameworks/native/include		\
 	system/core/include				\
-	$(LOCAL_PATH)/../lib
+	$(LOCAL_PATH)/../lib/			\
+	$(LOCAL_PATH)/../lib/android/
 
 LOCAL_SHARED_LIBRARIES := \
 	libcutils		\
