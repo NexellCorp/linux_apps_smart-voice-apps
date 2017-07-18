@@ -2,8 +2,31 @@
 #define NX_PDM_H
 
 #define AGCPDM_MAJOR_VER	(0)
-#define AGCPDM_MINOR_VER	(9)
-#define AGCPDM_REV			(0)
+#define AGCPDM_MINOR_VER	(10)
+#define AGCPDM_REV			(1)
+
+
+/*
+ * API usage :
+ *   pdm_Init --> pdm_GetVersion(option) --> pdm_SetParam(option) --> pdm_Run or pdm_Run_channel
+ */
+
+
+/*
+ * parameter enumerate factor
+ */
+enum {
+	PDM_PARAM_GAIN			= 0x00000001,
+};
+/*
+ * PDM GAIN Parameter :
+ *  This value controls the gain of the "PDM" output.
+ *  The smaller the value, the larger the output output.
+ *  The larger the value, the smaller the output output.
+ */
+#define	PARAM_GAIN_MIN		(2)
+#define	PARAM_GAIN_MAX		(6)
+#define	PARAM_GAIN_DEF		(4)
 
 #if __cplusplus
 extern "C" {
@@ -39,6 +62,7 @@ typedef struct {
 	int Delta1[4], Delta2[4], Delta3[4], Delta4[4];
 	int OldDelta1[4], OldDelta2[4], OldDelta3[4], OldDelta4[4];
 	int OldSigma5[4];
+	int ScaleValue;
 } pdm_STATDEF;
 
 /*
@@ -113,7 +137,41 @@ void pdm_Run_channel(pdm_STATDEF *pdm_st, short *outbuf, int *inbuf,
 
 
 /**
- * pdm_GetVersion - get version
+ * pdm_GetParam - This function is used to get various configuration information.
+ *
+ * @pdm_st: pointer to an pdm_STATDEF structure
+ *
+ * @param: PARAMETER enumeration value. (see parameter enumerate factor)
+ *
+ * @value: 
+ *
+ * @return : returns 0 on success and -1 on failure.
+ */
+int pdm_GetParam(pdm_STATDEF *pdm_st, int param, int *pValue );
+
+
+/**
+ * pdm_SetParam - This function is used to set various configuration information.
+ *
+ * @pdm_st: pointer to an pdm_STATDEF structure
+ *
+ * @param: PARAMETER enumeration value. (see parameter enumerate factor)
+ *
+ * @value: 
+ * 
+ * @return : returns 0 on success and negative on failure.
+ */
+int pdm_SetParam(pdm_STATDEF *pdm_st, int param, int value );
+
+
+/**
+ * pdm_SetParam - This function is used to set various configuration information.
+ *
+ * @major : major version number
+ *
+ * @minor : minor version number
+ *
+ * @rev : revision number
  *
  */
 void pdm_GetVersion( int *major, int *minor, int *rev );

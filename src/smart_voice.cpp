@@ -55,7 +55,7 @@ extern "C" {
 #define STREAM_MONITOR_PERIOD	(3 * 1000)	/* US */
 #define	PCM_RESAMPLE_BYTES	(8192)
 
-#define PCM_AGC_DEFAULT_GAIN	-10	/* -10 */
+#define PCM_AGC_DEFAULT_GAIN	0			/* AGC OFF */
 
 /******************************************************************************/
 
@@ -285,6 +285,10 @@ static void *audio_agc_stream(void *data)
 	int agc_dB = PCM_AGC_DEFAULT_GAIN;	/* -10 */
 
 	pdm_Init(&pdm_st);
+	// if( 0 != pdm_SetParam( &pdm_st, PDM_PARAM_GAIN, 5 ) )
+	// {
+	// 	pr_main("pdm_SetParam failed!!!\n");
+	// }
 
 __reinit:
 	pr_main("%10s: Init\n", Stream->GetName());

@@ -26,8 +26,9 @@ LOCAL_SHARED_LIBRARIES += \
 LOCAL_STATIC_LIBRARIES +=
 
 LOCAL_LDFLAGS += \
-	-L$(LOCAL_PATH)/../lib	\
+	-L$(LOCAL_PATH)/../lib/android	\
 	-lagcpdm_and \
+	-L$(LOCAL_PATH)/../lib	\
 	-lresample_and
 
 LOCAL_CFLAGS += -std=c++11
