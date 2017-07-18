@@ -18,9 +18,7 @@ LIB_DIR := ../lib/hf/
 CC  = $(CROSS_COMPILE)gcc
 CPP = $(CROSS_COMPILE)g++
 
-CFLAGS  :=  -Wall -std=c++11
-CFLAGS  +=  -mfloat-abi=hard
-CFLAGS  +=  --sysroot=/opt/poky/2.1.2/sysroots/cortexa9hf-neon-poky-linux-gnueabi
+CFLAGS  +=  -Wall -std=c++11
 
 ifeq ($(AEC_PCMOUT),y)
 CFLAGS  += -DSUPPORT_AEC_PCMOUT
