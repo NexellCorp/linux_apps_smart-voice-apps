@@ -1,4 +1,10 @@
 Release Note :
+ 2017-08-09 : modified by SeongO.Park
+  1. Add some command in smart_voice application.
+    a. Add agc dB control command. (-a)
+    b. Add pdm gain control command (-g)
+    c. This path is not a change to the libagcpdm library.
+
  2017-07-18 : released by SeongO.Park (ver 0.10.1)
   1. Add pdm_GetParam() and pdm_SetParam() API in the "nx_pdm.h" file.
     This function control PDM library options.

@@ -98,6 +98,11 @@ struct tm_stat {
 struct tm_stat tm_aec = { 0, };
 struct tm_stat tm_agc = { 0, };
 
+
+//	PDM Gain Value
+int pdm_gain = 4;
+int agc_dB = PCM_AGC_DEFAULT_GAIN;
+
 static inline void format_path(char *buf, const char *fmt, ...)
 {
 	assert(buf);
@@ -282,13 +287,13 @@ static void *audio_agc_stream(void *data)
 	 * Initialize PDM-AGC
 	 */
 	pdm_STATDEF pdm_st;
-	int agc_dB = PCM_AGC_DEFAULT_GAIN;	/* -10 */
 
 	pdm_Init(&pdm_st);
-	// if( 0 != pdm_SetParam( &pdm_st, PDM_PARAM_GAIN, 5 ) )
-	// {
-	// 	pr_main("pdm_SetParam failed!!!\n");
-	// }
+
+	if( 0 != pdm_SetParam( &pdm_st, PDM_PARAM_GAIN, pdm_gain ) )
+	{
+		pr_main("pdm_SetParam failed!!!\n");
+	}
 
 __reinit:
 	pr_main("%10s: Init\n", Stream->GetName());
@@ -1139,12 +1144,14 @@ struct args_option {
 	struct snd_dev pdm;
 };
 
-static void print_usage(void)
+static void print_usage(const char *appName)
 {
 	pr_info("\n");
 	pr_info("usage: options\n");
 	pr_info("\t-s : set run cpu frequency\n");
 	pr_info("\t-e : skip AEC process\n");
+	pr_info("\t-a : agc gain parameter(default:0(disable), unit:dB)\n");
+	pr_info("\t-g : pdm gain parameter(default:4, range : 2~6)\n");
 	pr_info("\t-i : not wait input argument\n");
 	pr_info("\t-c : file save path\n");
 	pr_info("\t-w : start file capture\n");
@@ -1154,6 +1161,11 @@ static void print_usage(void)
 	pr_info("\t-S : select spi  sound device (card,device)\n");
 	pr_info("\t-I : select i2s  sound device (card,device)\n");
 	pr_info("\t-t : test smart voice function\n");
+	pr_info("\n\t ex1) agc off & pdm gain 3\n");
+	pr_info("\t     %s -g 3\n", appName);
+	pr_info("\t ex1) agc on (10dB) & pdm gain 3\n");
+	pr_info("\t     %s -a 10 -g 3\n", appName);
+	
 }
 
 static void print_cmd_usage(void)
@@ -1210,65 +1222,71 @@ static int parse_options(int argc, char **argv,
 
 	*cmd = CMD_AEC_PROCESS;
 
-	while (-1 != (opt = getopt(argc, argv, "hieprwc:s:P:S:I:t"))) {
+	while (-1 != (opt = getopt(argc, argv, "hieprwa:g:c:s:P:S:I:t"))) {
 		switch(opt) {
-        	case 's':
-        		option->khz = strtoul(optarg, NULL, 10);
-        		break;
-        	case 'i':
-        		option->no_in_arg = false;
-        		break;
-        	case 'e':
-        		option->skip_aec = true;
-        		*cmd &= ~CMD_AEC_PROCESS;
-        		break;
-       		case 'w':
-       			option->filewrite = true;
-       			*cmd |= CMD_FILE_WRITE;
-       			break;
-       		case 'r':
-       			option->fc_pdm_in = true;
-       			*cmd |= CMD_FILE_PDM_IN;
-       			break;
-       		case 'p':
-       			option->fc_i2s_in = true;
-       			*cmd |= CMD_FILE_I2S_IN;
-       			break;
-       		case 'c':
-       			strcpy(option->path, optarg);
-       			break;
-       		case 'P':
-       			c = optarg;
-			option->play.card = strtol(c, NULL, 10);
-			c = strchr(c, ',');
-			if (!c)
+			case 's':
+				option->khz = strtoul(optarg, NULL, 10);
 				break;
-			option->play.dev = strtol(++c, NULL, 10);
-			break;
-       		case 'S':
-			c = optarg;
-			option->pdm.card = strtol(c, NULL, 10);
-			c = strchr(c, ',');
-			if (!c)
+			case 'i':
+				option->no_in_arg = false;
 				break;
-			option->pdm.dev = strtol(++c, NULL, 10);
-			break;
-       		case 'I':
-			c = optarg;
-			option->i2s.card = strtol(c, NULL, 10);
-			c = strchr(c, ',');
-			if (!c)
+			case 'e':
+				option->skip_aec = true;
+				*cmd &= ~CMD_AEC_PROCESS;
 				break;
-			option->i2s.dev = strtol(++c, NULL, 10);
-			break;
-       		case 't':
-			option->test_time = 20;	/* default 20 sec test */
-			break;
-        	default:
-        		print_usage();
-        		exit(0);
-        		break;
-      		}
+			case 'a':
+				agc_dB = atoi(optarg);
+				break;
+			case 'g':
+				pdm_gain = atoi(optarg);
+				break;
+			case 'w':
+				option->filewrite = true;
+				*cmd |= CMD_FILE_WRITE;
+				break;
+			case 'r':
+				option->fc_pdm_in = true;
+				*cmd |= CMD_FILE_PDM_IN;
+				break;
+			case 'p':
+				option->fc_i2s_in = true;
+				*cmd |= CMD_FILE_I2S_IN;
+				break;
+			case 'c':
+				strcpy(option->path, optarg);
+				break;
+			case 'P':
+				c = optarg;
+				option->play.card = strtol(c, NULL, 10);
+				c = strchr(c, ',');
+				if (!c)
+					break;
+				option->play.dev = strtol(++c, NULL, 10);
+				break;
+			case 'S':
+				c = optarg;
+				option->pdm.card = strtol(c, NULL, 10);
+				c = strchr(c, ',');
+				if (!c)
+					break;
+				option->pdm.dev = strtol(++c, NULL, 10);
+				break;
+			case 'I':
+				c = optarg;
+				option->i2s.card = strtol(c, NULL, 10);
+				c = strchr(c, ',');
+				if (!c)
+					break;
+				option->i2s.dev = strtol(++c, NULL, 10);
+				break;
+			case 't':
+				option->test_time = 20;	/* default 20 sec test */
+				break;
+			default:
+				print_usage( argv[0] );
+				exit(0);
+				break;
+				}
 	}
 	return 0;
 }
@@ -1402,8 +1420,8 @@ int main(int argc, char **argv)
 	struct st_audio_streams st_stream = { Streams, size, option.test_time };
 	int i, ret;
 
-   	STREAM_LC_INIT();
-   	g_st_stream = &st_stream;
+	STREAM_LC_INIT();
+	g_st_stream = &st_stream;
 
 	for (i = 0; i < size; i++)
 		Streams[i] = s_threads[i].Stream;
