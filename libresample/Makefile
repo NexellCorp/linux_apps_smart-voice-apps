@@ -1,36 +1,46 @@
-#CROSS_COMPILE := arm-linux-gnueabihf-
-CROSS_COMPILE := arm-poky-linux-gnueabi-
-LIB_DIR := ../lib
-INC_DIR := ../lib
+CROSS_COMPILE := arm-linux-gnueabihf-
 
-CC  = $(CROSS_COMPILE)gcc
-CPP = $(CROSS_COMPILE)g++
-AR  = $(CROSS_COMPILE)ar
+DESTDIR     := ../lib
+PKG_TYPE    := hf
+PKG_CFLAGS  :=
+PKG_LDFLAGS :=
 
-CFLAGS  := -Wall
+ifeq ($(CC),cc)
+CC  := $(CROSS_COMPILE)gcc
+endif
+ifeq ($(AR),ar)
+AR  := $(CROSS_COMPILE)ar
+endif
+CXX := $(CROSS_COMPILE)g++
+
+CFLAGS  := $(PKG_CFLAGS)
+LDFLAGS := $(PKG_LDFLAGS)
+
+CFLAGS  += -Wall
+ifeq ($(PKG_TYPE),hf)
 CFLAGS  += -mfloat-abi=hard
+endif
 ARFLAGS	:= crv
 
 CFLAGS  += -O3
 CFLAGS  += -fomit-frame-pointer
 
-CFLAGS	+= -march=armv7-a -mfpu=neon -mcpu=cortex-a9 --sysroot=/opt/poky/2.1.2/sysroots/cortexa9hf-neon-poky-linux-gnueabi
-CXXFLAGS+= -march=armv7-a -mfpu=neon -mcpu=cortex-a9 --sysroot=/opt/poky/2.1.2/sysroots/cortexa9hf-neon-poky-linux-gnueabi
+CXXFLAGS += $(CFLAGS)
+CXXFLAGS += -std=c++11
 
 COBJS	:= resample.o resample2.o
 LIBS	+= -lm
-OBJS	:= $(COBJS) $(CPPOBJS)
+OBJS	:= $(COBJS)
 
-INC_FILES := resample.h
-
-TARGET = libresample
+INCFILES := resample.h
+TARGET   := libresample
 
 all : $(TARGET)
 
 $(TARGET) : depend $(OBJS)
 	$(AR) $(ARFLAGS) $(TARGET).a $(OBJS)
-	cp  $(TARGET).a $(LIB_DIR)
-	cp $(INC_FILES) $(INC_DIR)
+	cp $(TARGET).a $(DESTDIR)/$(PKG_TYPE)/
+	cp $(INCFILES) $(DESTDIR)
 
 .PHONY: clean
 
@@ -41,12 +51,11 @@ ifeq (.depend,$(wildcard .depend))
 include .depend
 endif
 
-SRCS := $(COBJS:.o=.c) $(CPPOBJS:.o=.cpp)
 depend dep:
-	$(CC)  -M $(CFLAGS) $(SRCS) > .depend
+	$(CC)  -M $(CFLAGS) $(COBJS:.o=.c) > .depend
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c -o $@ $<
 
 %.o: %.cpp
-	$(CPP) $(CFLAGS) $(INCLUDE) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -c -o $@ $<

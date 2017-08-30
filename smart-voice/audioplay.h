@@ -2,6 +2,7 @@
 #define _AUDIO_PLAY_H_
 
 #include "tinyalsa_asoundlib.h"
+#include "util.h"
 
 enum AUDIO_STREAM_DIR {
 	AUDIO_STREAM_PLAYBACK,
@@ -9,7 +10,7 @@ enum AUDIO_STREAM_DIR {
 };
 
 class CAudioPlayer {
-public:
+	public:
 	CAudioPlayer(void);
 	CAudioPlayer(const char *Name, int Card, int Device,
 			int Channel, int SampleRate, int SampleBits,
@@ -18,7 +19,7 @@ public:
 
 	virtual ~CAudioPlayer(void);
 
-public:
+	public:
 	bool Open(const char *Name, int Card, int Device,
 			int Channel, int SampleRate, int SampleBits,
 			int Periods, int PeriodBytes,
@@ -42,7 +43,7 @@ public:
 	void PcmInfo(int Card, int Device,
 			enum AUDIO_STREAM_DIR Direction);
 
-private:
+	private:
 	struct pcm_config m_PCMConfig;
 	struct pcm *m_hPCM;
 	int m_Card, m_Device, m_SampleBits;

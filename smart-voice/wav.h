@@ -4,7 +4,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <cstdint> /* include this header for uint64_t */
-#include "util_debug.h"
+
+#include "util.h"
 
 #if __cplusplus
 extern "C" {
@@ -34,8 +35,8 @@ struct wav_header {
 };
 
 class CWAVFile {
-public:
-	~CWAVFile(void)	{
+	public:
+	~CWAVFile(void) {
 		if (m_hFile)
 			Close();
 	}
@@ -53,7 +54,7 @@ public:
 		memset(m_strName, 0, sizeof(m_strName));
 	}
 
-	CWAVFile(long save_period_size) {
+	CWAVFile(int save_period_size) {
 		m_hFile = NULL;
 		m_SavePeriodBytes = 0;
 		m_SavePeriodAvail = 0;
@@ -65,25 +66,31 @@ public:
 
 		memset(m_strName, 0, sizeof(m_strName));
 	}
-public:
+
 	bool Open(int channels,
-		int samplerate, int samplebits, const char *path)
-	{
+		int samplerate, int samplebits, char *path) {
 		struct wav_header *header = &m_WavHeader;
 
 		if (m_hFile) {
-			pr_err("E: Already opened (%s) ...\n", m_strName);
+			LogE("Already opened (%s) ...\n", m_strName);
 			return false;
 		}
 
+		Lock();
+
 		m_hFile = fopen(path, "wb");
 		if (!m_hFile) {
-			pr_err("E: Unable to create file '%s' !!!\n", path);
+			LogE("Unable to create file '%s' !!!\n", path);
+			UnLock();
 			return false;
 		}
 
 		strcpy(m_strName, path);
+
 		m_bWavFormat = true;
+
+		if (channels == 0 || samplerate == 0 || samplebits == 0)
+			m_bWavFormat = false;
 
 		if (m_bWavFormat) {
 			memset(header, 0, sizeof(struct wav_header));
@@ -111,7 +118,7 @@ public:
 			fseek(m_hFile, sizeof(struct wav_header), SEEK_SET);
 		}
 
-		pr_info("%s open : %s %d ch, %d hz, %d bits\n",
+		LogI(" %s open : %s %d ch, %d hz, %d bits\n",
 			m_bWavFormat ? "WAV" : "RAW", m_strName, channels,
 			samplerate, samplebits);
 
@@ -120,17 +127,53 @@ public:
 		m_SampleBits = samplebits;
 		m_WriteBytes = 0;
 
+		UnLock();
 		return true;
 	}
 
-	bool Write(void *buffer, size_t size)
-	{
+	void Close(void) {
+		struct wav_header *header = &m_WavHeader;
+
+		if (!m_hFile)
+			return;
+
+		LogI(" %s close: %s %d ch, %d hz, %d bits, %lld bytes\n",
+			m_bWavFormat ? "WAV" : "RAW", m_strName,
+			m_Channels, m_SampleRate, m_SampleBits, m_WriteBytes);
+
+		Lock();
+
+		if (m_bWavFormat) {
+			long long frames = m_WriteBytes /
+				((m_SampleBits / 8) * m_Channels);
+			/* write header now all information is known */
+			header->data_sz = frames * header->block_align;
+			header->riff_sz = header->data_sz + sizeof(header) - 8;
+
+			fseek(m_hFile, 0, SEEK_SET);
+			fwrite(header, sizeof(struct wav_header), 1, m_hFile);
+		}
+
+		fclose(m_hFile);
+		UnLock();
+
+		m_hFile = NULL;
+		m_WriteBytes = 0;
+		m_SavePeriodAvail = 0;
+
+		memset(m_strName, 0, sizeof(m_strName));
+	}
+
+	bool Write(void *buffer, size_t size) {
 		if (!m_hFile)
 			return false;
 
+		Lock();
+
 		if (size != fwrite(buffer, 1, size, m_hFile)) {
-			pr_err("E: write wave file to %s size %d !!!\n",
+			LogE("write wave file to %s size %d !!!\n",
 				m_strName, (int)size);
+			UnLock();
 			return false;
 		}
 
@@ -154,41 +197,18 @@ public:
 				m_SavePeriodAvail = m_SavePeriodBytes;
 			}
 		}
+		UnLock();
+
 		return true;
 	}
 
-	void	Close(void)
-	{
-		struct wav_header *header = &m_WavHeader;
+	const char *GetName(void) { return m_strName; }
 
-		if (!m_hFile)
-			return;
+	private:
+	void Lock(void)   { }
+	void UnLock(void) { }
 
-		pr_info("%s close: %s %d ch, %d hz, %d bits, %lld bytes\n",
-			m_bWavFormat ? "WAV" : "RAW", m_strName,
-			m_Channels, m_SampleRate, m_SampleBits, m_WriteBytes);
-
-		if (m_bWavFormat) {
-			long long frames = m_WriteBytes /
-				((m_SampleBits / 8) * m_Channels);
-			/* write header now all information is known */
-			header->data_sz = frames * header->block_align;
-			header->riff_sz = header->data_sz + sizeof(header) - 8;
-
-			fseek(m_hFile, 0, SEEK_SET);
-			fwrite(header, sizeof(struct wav_header), 1, m_hFile);
-		}
-
-		fclose(m_hFile);
-
-		m_hFile = NULL;
-		m_WriteBytes = 0;
-		m_SavePeriodAvail = 0;
-
-		memset(m_strName, 0, sizeof(m_strName));
-	}
-
-private:
+	private:
 	FILE *m_hFile;
 	struct wav_header m_WavHeader;
 
@@ -198,12 +218,12 @@ private:
 	bool m_bWavFormat;
 	long long m_SavePeriodBytes;
 	long long m_SavePeriodAvail;
+	pthread_mutex_t m_Lock;
 };
 
 #if 0
 static FILE *open_wave(char *path, int channels,
-			int rate, int bits, struct wav_header *header)
-{
+			int rate, int bits, struct wav_header *header) {
 	FILE *file;
 
 	if (!header)
@@ -211,7 +231,7 @@ static FILE *open_wave(char *path, int channels,
 
 	file = fopen(path, "wb");
 	if (!file) {
-		pr_err("E: Unable to create file '%s'\n", path);
+		LogE("Unable to create file '%s'\n", path);
 		return NULL;
 	}
 	memset(header, 0, sizeof(*header));
@@ -232,21 +252,20 @@ static FILE *open_wave(char *path, int channels,
 
 	/* leave enough room for header */
 	fseek(file, sizeof(struct wav_header), SEEK_SET);
-	pr_info("wave open %s: %u ch, %d hz, %u bits\n",
+	LogI("wave open %s: %u ch, %d hz, %u bits\n",
 		path, channels, rate, bits);
 
 	return file;
 }
 
-static int write_wave(FILE *file, void *buffer, int size)
-{
+static int write_wave(FILE *file, void *buffer, int size) {
 	if (!file)
 		return -1;
 
 	int ret = fwrite(buffer, 1, size, file);
 
 	if (ret != size) {
-		pr_err("E: Error capturing sample ....\n");
+		LogE("Error capturing sample ....\n");
 		return ret;
 	}
 
@@ -254,14 +273,13 @@ static int write_wave(FILE *file, void *buffer, int size)
 }
 
 static void close_wave(FILE *file, struct wav_header *header,
-				int channels, int bits, unsigned long bytes)
-{
+				int channels, int bits, unsigned long bytes) {
 	long long frames;
 
 	if (!file || bits == 0 || channels == 0)
 		return;
 
-	pr_info("wave close: %u ch, %d hz, %u bits, %lu bytes\n",
+	LogI("wave close: %u ch, %d hz, %u bits, %lu bytes\n",
 		channels, header->sample_rate, bits, bytes);
 
 	frames = bytes / ((bits / 8) * channels);
@@ -273,7 +291,7 @@ static void close_wave(FILE *file, struct wav_header *header,
 	fseek(file, 0, SEEK_SET);
 	fwrite(header, sizeof(struct wav_header), 1, file);
 	fclose(file);
-	pr_info("[done]\n");
+	LogI("[done]\n");
 }
 #endif
 
@@ -281,4 +299,4 @@ static void close_wave(FILE *file, struct wav_header *header,
 }
 #endif
 
-#endif /* _WAV_FILE_H_ */
+#endif

@@ -5,7 +5,6 @@
 #include <unistd.h>
 
 #include "audioplay.h"
-#include "util_debug.h"
 
 struct pcm {
 	int fd;
@@ -74,20 +73,20 @@ bool CAudioPlayer::Open(const char *Name, int Card, int Device,
 	m_PCMConfig.period_size = PeriodBytes/(Channels*(SampleBits/8));
 	m_PCMConfig.period_count = Periods;
 
-	pr_aplay("%s %s card:%d.%d ch.%d, %d hz, %d bits\n",
+	LogD("%s %s card:%d.%d ch.%d, %d hz, %d bits\n",
 		Name, Stream == PCM_OUT ? "Playing" : "Capturing",
 		Card, Device, Channels, SampleRate, SampleBits);
-	pr_aplay("period bytes %d, period size %d, periods %d\n",
+	LogD("period bytes %d, period size %d, periods %d\n",
 		PeriodBytes, m_PCMConfig.period_size, Periods);
 
-	if (SampleBits == 32)
+	if (SampleBits == 32) {
 		m_PCMConfig.format = PCM_FORMAT_S32_LE;
-	else if (SampleBits == 16)
+	} else if (SampleBits == 16) {
 		m_PCMConfig.format = PCM_FORMAT_S16_LE;
-	else if (SampleBits == 8)
+	} else if (SampleBits == 8) {
 		m_PCMConfig.format = PCM_FORMAT_S8;
-	else {
-		pr_err("E: %s Unable to sample bits %d for card %d device %d\n",
+	} else {
+		LogE("%s Unable to sample bits %d for card %d device %d\n",
 			Stream == PCM_OUT ? "Playing":"Capturing",
 			SampleBits, Card, Device);
 		return false;
@@ -99,17 +98,17 @@ bool CAudioPlayer::Open(const char *Name, int Card, int Device,
 
 	m_hPCM = pcm_open(Card, Device, Stream, &m_PCMConfig);
 	if (!m_hPCM || !pcm_is_ready(m_hPCM)) {
-		pr_err("E: %s Unable to open card %d.%d ch.%d, %d hz, %d bits\n",
+		LogE("%s Unable to open card %d.%d ch.%d, %d hz, %d bits\n",
 			Stream == PCM_OUT ? "Playing":"Capturing",
 			Card, Device, Channels, SampleRate, SampleBits);
-		pr_err("E: period bytes %d, period size %d, periods %d\n",
+		LogE("period bytes %d, period size %d, periods %d\n",
 			PeriodBytes, m_PCMConfig.period_size, Periods);
-		pr_err("E:%s\n", pcm_get_error(m_hPCM));
+		LogE("%s\n", pcm_get_error(m_hPCM));
 		return false;
 	}
 
 	if (Name && strlen(Name))
-		strcpy(m_PcmName, Name);
+		snprintf(m_PcmName, strlen(Name), Name);
 
 	m_Card = Card;
 	m_Device = Device;
@@ -137,9 +136,8 @@ int CAudioPlayer::Capture(unsigned char *Buffer, int Byte)
 		return 0;
 
 	int ret = pcm_read(m_hPCM, Buffer, Byte);
-
 	if (ret) {
-		pr_err("E: Capturing, %s %s\n",
+		LogE("Capturing, %s %s\n",
 			m_PcmName, pcm_get_error(m_hPCM));
 		return -1;
 	}
@@ -155,7 +153,7 @@ int CAudioPlayer::PlayBack(unsigned char *Buffer, int Byte)
 
 	if (ret) {
 	#if 0
-		pr_err("E: Playing, %s %s\n",
+		LogE("Playing, %s %s\n",
 			m_PcmName, pcm_get_error(m_hPCM));
 	#endif
 		return -1;
@@ -173,7 +171,7 @@ bool CAudioPlayer::Start(void)
 	int ret = pcm_start(pcm);
 
 	if (ret < 0)
-		pr_err("E: cannot start channel <%s> (%s) ...\n",
+		LogE("Cannot start channel <%s> (%s) ...\n",
 			m_PcmName, pcm_get_error(pcm));
 
 	return ret < 0 ? false  : true;
@@ -188,7 +186,7 @@ bool CAudioPlayer::Stop(bool Drop)
 	int ret = pcm_stop(pcm);
 
 	if (0 > ret)
-		pr_err("E: cannot stop channel <%s> (%s) ...\n",
+		LogE("Cannot stop channel <%s> (%s) ...\n",
 			m_PcmName, pcm_get_error(pcm));
 
     return ret < 0 ? false  : true;
@@ -208,30 +206,30 @@ void CAudioPlayer::PcmInfo(int Card, int Device,
 	int Stream = Direction == AUDIO_STREAM_PLAYBACK ?
 		PCM_OUT : PCM_IN;
 
-	pr_info("\nPCM %s:\n", Stream == PCM_OUT ? "out" : "in");
+	LogI("\nPCM %s:\n", Stream == PCM_OUT ? "out" : "in");
 
 	params = pcm_params_get(Card, Device, Stream);
 	if (params == NULL) {
-		pr_info("E: card %d, device %d does not exist.\n",
+		LogI("Card %d, device %d does not exist.\n",
 			m_Card, m_Device);
 		return;
 	}
 
 	min = pcm_params_get_min(params, PCM_PARAM_RATE);
 	max = pcm_params_get_max(params, PCM_PARAM_RATE);
-	pr_info("        Rate:\tmin=%uHz\tmax=%uHz\n", min, max);
+	LogI("        Rate:\tmin=%uHz\tmax=%uHz\n", min, max);
 	min = pcm_params_get_min(params, PCM_PARAM_CHANNELS);
 	max = pcm_params_get_max(params, PCM_PARAM_CHANNELS);
-	pr_info("    Channels:\tmin=%u\t\tmax=%u\n", min, max);
+	LogI("    Channels:\tmin=%u\t\tmax=%u\n", min, max);
 	min = pcm_params_get_min(params, PCM_PARAM_SAMPLE_BITS);
 	max = pcm_params_get_max(params, PCM_PARAM_SAMPLE_BITS);
-	pr_info(" Sample bits:\tmin=%u\t\tmax=%u\n", min, max);
+	LogI(" Sample bits:\tmin=%u\t\tmax=%u\n", min, max);
 	min = pcm_params_get_min(params, PCM_PARAM_PERIOD_SIZE);
 	max = pcm_params_get_max(params, PCM_PARAM_PERIOD_SIZE);
-	pr_info(" Period size:\tmin=%u\t\tmax=%u\n", min, max);
+	LogI(" Period size:\tmin=%u\t\tmax=%u\n", min, max);
 	min = pcm_params_get_min(params, PCM_PARAM_PERIODS);
 	max = pcm_params_get_max(params, PCM_PARAM_PERIODS);
-	pr_info("Period count:\tmin=%u\t\tmax=%u\n", min, max);
+	LogI("Period count:\tmin=%u\t\tmax=%u\n", min, max);
 
 	pcm_params_free(params);
 }

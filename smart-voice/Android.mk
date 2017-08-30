@@ -27,9 +27,9 @@ LOCAL_STATIC_LIBRARIES +=
 
 LOCAL_LDFLAGS += \
 	-L$(LOCAL_PATH)/../lib/android	\
-	-lagcpdm_and \
-	-L$(LOCAL_PATH)/../lib	\
-	-lresample_and
+	-lagcpdm \
+	-L$(LOCAL_PATH)/../lib/android	\
+	-lresample
 
 LOCAL_CFLAGS += -std=c++11
 
@@ -37,3 +37,7 @@ LOCAL_MODULE:= smart_voice_and
 #LOCAL_MODULE_PATH := $(LOCAL_PATH)
 
 include $(BUILD_EXECUTABLE)
+include external/stlport/libstlport.mk
+LOCAL_SHARED_LIBRARIES += libstlport
+APP_STL := stlport_static
+APP_STL := gnustl_static

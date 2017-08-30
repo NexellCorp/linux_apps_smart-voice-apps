@@ -17,7 +17,7 @@ LOCAL_SRC_FILES := \
 
 LOCAL_LDFLAGS +=
 
-LOCAL_MODULE := libresample_and
+LOCAL_MODULE := libresample
 
 LOCAL_MODULE_TAGS := optional
 
