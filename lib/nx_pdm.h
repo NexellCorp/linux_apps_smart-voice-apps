@@ -137,17 +137,59 @@ void pdm_Run_channel(pdm_STATDEF *pdm_st, short *outbuf, int *inbuf,
 
 
 /**
+ * pdm_Run_channel2 - covert pdm raw data to pcm data with channel
+ *
+ * @pdm_st: pointer to an pdm_STATDEF structure
+ *
+ * @outbuf: converted pcm data with 16bit per channel
+ *
+ * @inbuf[]: pdm raw data pointers, data buffer size must be 2048 bytes per channel,
+ *
+ * @agc_dB: pcm data output gain value
+ *
+ * @channels: pdm raw data channel count to convert pcm data, support 1 ~ 4 channel
+ *
+ * @be: swap to big-endian
+ *
+ * @fast: fast mode
+ *
+ * Convert pdm raw data (2048bytes per channel) to interleved pcm format data(512bytes * channel)
+ */
+void pdm_Run_filters(pdm_STATDEF *pdm_st, short *outbuf, int *inbuf[],
+			int channels, int agc_dB, int be, int fast_mode);
+
+/**
+ * pdm_Run_filter - covert pdm raw data to pcm data
+ *
+ * @pdm_st: pointer to an pdm_STATDEF structure
+ *
+ * @outbuf: converted pcm data with 16bit
+ *
+ * @inbuf: pdm raw data, data buffer size must be 4096 bytes and 16bit
+ *
+ * @agc_dB: pcm data output gain value
+ *
+ * @be: swap to big-endian
+ *
+ * @fast: fast mode
+ *
+ * Convert pdm raw data (4096bytes) to interleved pcm format data(1024bytes)
+ */
+void pdm_Run_filter(pdm_STATDEF *pdm_st, short *outbuf, int *inbuf,
+			int agc_dB, int be, int fast_mode);
+
+/**
  * pdm_GetParam - This function is used to get various configuration information.
  *
  * @pdm_st: pointer to an pdm_STATDEF structure
  *
  * @param: PARAMETER enumeration value. (see parameter enumerate factor)
  *
- * @value: 
+ * @value:
  *
  * @return : returns 0 on success and -1 on failure.
  */
-int pdm_GetParam(pdm_STATDEF *pdm_st, int param, int *pValue );
+int pdm_GetParam(pdm_STATDEF *pdm_st, int param, int *pValue);
 
 
 /**
@@ -157,8 +199,8 @@ int pdm_GetParam(pdm_STATDEF *pdm_st, int param, int *pValue );
  *
  * @param: PARAMETER enumeration value. (see parameter enumerate factor)
  *
- * @value: 
- * 
+ * @value:
+ *
  * @return : returns 0 on success and negative on failure.
  */
 int pdm_SetParam(pdm_STATDEF *pdm_st, int param, int value );
