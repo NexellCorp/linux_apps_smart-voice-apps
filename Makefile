@@ -11,6 +11,7 @@ PKG_LDFLAGS :=
 SRCDIR  = smart-voice
 
 LIBDIR  = libresample
+LIBDIR += libtinyalsa
 
 PHONY := all clean
 all: lib src
