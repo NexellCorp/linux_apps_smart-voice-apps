@@ -58,6 +58,7 @@ typedef struct wav_file_t {
 		Channels = ch;
 		SampleRate = rate;
 		SampleBits = bit;
+
 		if (path) {
 			char *p = WavPath;
 
@@ -73,7 +74,7 @@ typedef struct wav_file_t {
 #define WAV_CAPT_PERIOD	(512 * 1024) /* 51Kbyte */
 
 class CAudioStream {
-	public:
+public:
 	CAudioStream(const char *Name = NULL,
 		int Type = -1,
 		AUDIOPARAM_T Param = { -1, -1, 0, },
@@ -104,12 +105,11 @@ class CAudioStream {
 	void SetParam(AUDIOPARAM_T *Param);
 	const AUDIOPARAM_T *GetParam(void);
 
-	/* Buffer */
+	/* QBuffer */
 	CQueueBuffer *GetBuffer(void) { return m_pBuffer; }
-	bool AllocBuffer(void);
+	bool AllocBuffer(int PeriodBytes, int Periods);
 	void ReleaseBuffer(void);
 
-	/* Buffer */
 	char *PushBuffer(int Bytes, int WaitTime);
 	bool RelPushBuffer(int Bytes);
 	char *PopBuffer(int Bytes, int WaitTime);
@@ -137,13 +137,13 @@ class CAudioStream {
 	void CloseAllWavFile(void);
 	bool WriteWavFile(WAVFILE_T *Hnd, void *Buffer, size_t Size);
 
-	public:
+public:
 	TIMESTEMP_T time = { 1000 * 1000, 0, 0, 0 };
 	list <CAudioStream *> LStream; /* Input streams */
 	void *(*FN)(void *);
 	pthread_t Handle;
 
-	private:
+private:
 	const char *m_pName = NULL;
 	int m_Type = 0;
 	AUDIOPARAM_T m_AudioParam = { -1, -1, 0, };

@@ -119,13 +119,10 @@ const AUDIOPARAM_T *CAudioStream::GetParam(void)
 	return &m_AudioParam;
 };
 
-bool CAudioStream::AllocBuffer(void)
+bool CAudioStream::AllocBuffer(int PeriodBytes, int Periods)
 {
-	AUDIOPARAM_T *pParam = &m_AudioParam;
 	const char *Name = m_pName;
 	int Type = m_Type;
-	int Periods = pParam->Periods;
-	int PeriodBytes = pParam->PeriodBytes;
 	bool Ret = true;
 
 	if (!(PeriodBytes * PeriodBytes)) {
@@ -164,16 +161,20 @@ void CAudioStream::ReleaseBuffer(void)
 
 void CAudioStream::ClearBuffer(void)
 {
-	if (!m_pBuffer && !m_Release)
-		AllocBuffer();
+	if (!m_pBuffer && !m_Release) {
+		AUDIOPARAM_T *pParam = &m_AudioParam;
+		AllocBuffer(pParam->PeriodBytes, pParam->Periods);
+	}
 
 	m_pBuffer->ClearBuffer();
 }
 
 void CAudioStream::WaitCleanBuffer(void)
 {
-	if (!m_pBuffer && !m_Release)
-		AllocBuffer();
+	if (!m_pBuffer && !m_Release){
+		AUDIOPARAM_T *pParam = &m_AudioParam;
+		AllocBuffer(pParam->PeriodBytes, pParam->Periods);
+	}
 
 	m_pBuffer->WaitForClear();
 }
