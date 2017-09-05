@@ -13,7 +13,7 @@ INCDIR ?= $(PREFIX)/include
 all:
 	$(MAKE) -C src
 	$(MAKE) -C utils
-	$(MAKE) -C doxygen
+#	$(MAKE) -C doxygen
 
 .PHONY: clean
 clean:
