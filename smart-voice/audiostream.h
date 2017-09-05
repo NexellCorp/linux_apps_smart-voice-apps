@@ -143,6 +143,8 @@ public:
 	void *(*FN)(void *);
 	pthread_t Handle;
 
+	void operator()(CAudioStream *S) { LStream.push_back(S); }
+
 private:
 	const char *m_pName = NULL;
 	int m_Type = 0;

@@ -1049,7 +1049,7 @@ static void stream_link(CAudioStream *SS, ...)
 		if (lw != S->LStream.end())
 			continue;
 
-		S->LStream.push_back(Sarray[i-1]);
+		(*S)(Sarray[i-1]);
 	}
 
 	va_end(args);
