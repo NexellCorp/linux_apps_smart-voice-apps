@@ -45,7 +45,7 @@ LDFLAGS += -rdynamic # '-rdynamic' or '-Wl,export-dynamic'
 else
 CFLAGS  += -O2
 CFLAGS  += -fomit-frame-pointer
-LDFLAGS += -static
+#LDFLAGS += -static
 endif
 
 LIBS	+= $(DESTDIR)/$(PKG_TYPE)/libtinyalsa.a

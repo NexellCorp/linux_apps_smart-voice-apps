@@ -2,8 +2,8 @@
 #define NX_PDM_H
 
 #define AGCPDM_MAJOR_VER	(0)
-#define AGCPDM_MINOR_VER	(10)
-#define AGCPDM_REV			(1)
+#define AGCPDM_MINOR_VER	(11)
+#define AGCPDM_REV			(2)
 
 
 /*
@@ -17,6 +17,7 @@
  */
 enum {
 	PDM_PARAM_GAIN			= 0x00000001,
+	PCM_OUT_INTERLEAVED		= 0x00000002,
 };
 /*
  * PDM GAIN Parameter :
@@ -27,6 +28,45 @@ enum {
 #define	PARAM_GAIN_MIN		(2)
 #define	PARAM_GAIN_MAX		(6)
 #define	PARAM_GAIN_DEF		(4)
+
+/*
+ * OUT INTERLEAVED Parameter:
+ *  This paramerter is used to control the output format.
+ *  The output of the PARAM_OUT_INTERLEAVED and 
+ *  PARAM_OUT_NONINTERLEAVED parameters is shown below.
+ *    Interleaved Format ( 4channel ): 
+ *      outbuf[0] : MIC_0[0]
+ *      outbuf[1] : MIC_1[0]
+ *      outbuf[2] : MIC_2[0]
+ *      outbuf[3] : MIC_3[0]
+ *      outbuf[4] : MIC_0[1]
+ *      outbuf[5] : MIC_1[1]
+ *      outbuf[6] : MIC_2[1]
+ *      outbuf[7] : MIC_3[1]
+ *    Non-Interleaved Format ( 4channel ): 
+ *      outbuf[0] : MIC_0[0]
+ *      outbuf[1] : MIC_0[1]
+ *      outbuf[2] : MIC_0[2]
+ *      outbuf[3] : MIC_0[3]
+ *          ..
+ *      output[256] : MIC_1[0]
+ *      output[257] : MIC_1[1]
+ *      output[258] : MIC_1[2]
+ *      output[259] : MIC_1[3]
+ *          ...
+ *      outbuf[512] : MIC_2[0]
+ *      outbuf[513] : MIC_2[1]
+ *      outbuf[514] : MIC_2[2]
+ *      outbuf[515] : MIC_2[3]
+ *          ..
+ *      output[768] : MIC_4[0]
+ *      output[769] : MIC_4[1]
+ *      output[770] : MIC_4[2]
+ *      output[771] : MIC_4[3]
+ */
+#define PARAM_OUT_INTERLEAVED 		(0)	/* Default */
+#define PARAM_OUT_NONINTERLEAVED	(1)
+
 
 #if __cplusplus
 extern "C" {
@@ -63,6 +103,7 @@ typedef struct {
 	int OldDelta1[4], OldDelta2[4], OldDelta3[4], OldDelta4[4];
 	int OldSigma5[4];
 	int ScaleValue;
+	int OutInterleaved;
 } pdm_STATDEF;
 
 /*
