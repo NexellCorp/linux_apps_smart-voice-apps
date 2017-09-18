@@ -82,6 +82,7 @@ typedef struct option_t {
 	bool playback = false;
 	pthread_mutex_t lock;
 	SNDDEV_T play, ref, pdm;
+	int mask_pdm_channel = 0;
 } OP_T;
 
 static list <CAudioStream *> g_List;
@@ -398,6 +399,17 @@ __reset:
 		TIMESTEMP_T *time = &S->time;
 		long long ts = 0, td = 0;
 
+		if (op->mask_pdm_channel) {
+			char *p = (char *)I_Ptr;
+
+			if (op->mask_pdm_channel > 0xf)
+				op->mask_pdm_channel = 0xf;
+
+			for (int i = 0; i < i_bytes; i++, p++) {
+				 *p &= (op->mask_pdm_channel | (op->mask_pdm_channel << 4));
+			}
+		}
+
 		RUN_TIMESTAMP_US(ts);
 
 		pdm_Run(&pdm_st, (short int*)O_Ptr, (int*)I_Ptr, agc_dB);
@@ -477,7 +489,7 @@ static void *fn_process(void *Data)
 	/* L(16bit)/R(16bit) * sample */
 	int *Dummy = reinterpret_cast<int *>(new char[AEC_INPUT_SAMPLE * AEC_INPUT_BIT/8 * 2]);
 	int *O_PCM = reinterpret_cast<int *>(new char[AEC_INPUT_SAMPLE * AEC_INPUT_BIT/8 * 2]);
-	int *I_Dat[2] = { Dummy, Dummy };
+	int *I_Dat[2] = { new int[s_bytes/4], new int[s_bytes/4] };
 	int *I_Ref[2] = { Dummy, Dummy };
 
 #ifdef SUPPORT_PRE_PROCESS
@@ -637,9 +649,9 @@ static void *fn_monitor(void *Data)
 		LoopTime += op->moniter_period/1000;
 
 		LogI("\n================================================================\n");
-		LogI(" FILTER %s mode, agc %d DB, pdm %d gain\n",
+		LogI(" FILTER %s mode, agc %d DB, pdm %d gain pdm maks:0x%x\n",
 			op->filter_fast_mode ? "fast" : "no fast",
-			op->filter_agc_db, op->filter_pdm_gain);
+			op->filter_agc_db, op->filter_pdm_gain, op->mask_pdm_channel);
 
 		int i = 0;
 		for (auto ls = g_List.begin(); ls != g_List.end(); ++ls, i++) {
@@ -778,6 +790,7 @@ static void print_help(const char *name, OP_T *op)
 	LogI("\t-r : capture pdm input raw data \n");
 	LogI("\t-m : capture pdm pcm data\n");
 	LogI("\t-o : capture preprocess output data\n");
+	LogI("\t-v : pdm channel mask for test (hex)\n");
 
 	LogI("\t-P : select play sound device (card.%d, dev.%d)\n", op->play.c, op->play.d);
 	LogI("\t-I : select ref(i2s) sound device (card.%d, dev.%d)\n", op->ref.c, op->ref.d);
@@ -809,7 +822,7 @@ static OP_T *parse_options(int argc, char **argv, unsigned int *cmd)
 	op->pdm.c = 0, op->pdm.d = 4;
 #endif
 
-	while (-1 != (opt = getopt(argc, argv, "his:efa:g:c:wrmotP:S:I:"))) {
+	while (-1 != (opt = getopt(argc, argv, "his:efa:g:c:wrmotv:P:S:I:"))) {
 		switch(opt) {
         	case 'i':
         		op->do_run_cmd = false;
@@ -849,6 +862,9 @@ static OP_T *parse_options(int argc, char **argv, unsigned int *cmd)
        			*cmd |= (CMD_FILE_CAPT | CMD_FILE_PREP_OUT);
        			op->capture |= CMD_FILE_PREP_OUT;
        			break;
+        	case 'v':
+        		op->mask_pdm_channel = strtoul(optarg, NULL, 16);
+        		break;
        		case 't':
 			op->loop_time = VERIFY_TIME;
 			break;
