@@ -1034,7 +1034,7 @@ static void app_prepare(OP_T *op)
 		}
 	}
 
-//	signal_register();
+	signal_register();
 }
 
 static void stream_dump(void)
