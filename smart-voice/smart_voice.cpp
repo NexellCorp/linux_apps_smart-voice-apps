@@ -85,7 +85,13 @@ typedef struct option_t {
 	int mask_pdm_channel = 0;
 } OP_T;
 
-static list <CAudioStream *> g_List;
+typedef struct stream_array {
+	list <CAudioStream *> List;
+	void operator()(CAudioStream *S) { List.push_back(S); size++; }
+	int size = 0;
+} STREAM_ARRAY_T;
+
+static STREAM_ARRAY_T *g_Sarray;
 
 static inline void cmd_set(CAudioStream *S, unsigned CMD)
 {
@@ -114,23 +120,25 @@ static inline bool cmd_value(CAudioStream *S, unsigned CMD)
 
 static void streams_command(unsigned cmd)
 {
-	int i = 0;
+	STREAM_ARRAY_T *Sarray = g_Sarray;
 
-	for (auto ls = g_List.begin(); ls != g_List.end(); ++ls, i++)
-		cmd_set((*ls), cmd);
+	for_each(Sarray->List.begin(), Sarray->List.end(),
+		[cmd](CAudioStream *S)->void { cmd_set(S, cmd); });
 
 	LogD("%s: CMD 0x%x\n", __func__, cmd);
 }
 
 static void streams_command(unsigned cmd, unsigned clear)
 {
-	int i = 0;
+	STREAM_ARRAY_T *Sarray = g_Sarray;
 
-	for (auto ls = g_List.begin(); ls != g_List.end(); ++ls, i++) {
+	for_each(Sarray->List.begin(), Sarray->List.end(),
+		[cmd, clear](CAudioStream *S)->void {
 		if (clear)
-			cmd_clear((*ls), clear);
-		cmd_set((*ls), cmd);
-	}
+			cmd_clear(S, clear);
+		cmd_set(S, cmd);
+    	});
+
 
 	LogD("%s: CMD 0x%x:0x%x\n", __func__, cmd, clear);
 }
@@ -654,8 +662,10 @@ static void *fn_monitor(void *Data)
 			op->filter_fast_mode ? "fast" : "no fast",
 			op->filter_agc_db, op->filter_pdm_gain, op->mask_pdm_channel);
 
+		STREAM_ARRAY_T *Sarray = g_Sarray;
 		int i = 0;
-		for (auto ls = g_List.begin(); ls != g_List.end(); ++ls, i++) {
+
+		for (auto ls = Sarray->List.begin(); ls != Sarray->List.end(); ++ls, i++) {
 			CAudioStream *S = (*ls);
 			CQueueBuffer *pBuf = S->GetBuffer();
 			TIMESTEMP_T *time = &S->time;
@@ -961,6 +971,9 @@ static void backtrace_dump(void)
 
 	size = backtrace(array, 10);
 	backtrace_symbols_fd(array, size, 2);
+
+	signal(SIGSEGV, SIG_DFL);
+	raise(SIGSEGV);
 }
 #else
 static void backtrace_dump(void) { }
@@ -968,6 +981,8 @@ static void backtrace_dump(void) { }
 
 static void signal_handler(int sig)
 {
+	STREAM_ARRAY_T *Sarray = g_Sarray;
+
 	switch(sig) {
 	case SIGSEGV:
 		backtrace_dump();
@@ -979,15 +994,16 @@ static void signal_handler(int sig)
 
 	streams_command(CMD_STREAM_EXIT);
 
-	for (auto ls = g_List.begin(); ls != g_List.end(); ++ls) {
-		(*ls)->ReleaseAll();
+	for_each(Sarray->List.begin(), Sarray->List.end(),
+		[](CAudioStream *S)->void {
+		S->ReleaseAll();
 #ifndef ANDROID
-		pthread_cancel((*ls)->Handle);
+		pthread_cancel(S->Handle);
 #else
-		pthread_kill((*ls)->Handle, SIGUSR1);
+		pthread_kill(S->Handle, SIGUSR1);
 #endif
-		pthread_join((*ls)->Handle, NULL);
-	}
+		pthread_join(S->Handle, NULL);
+	});
 
 	exit(EXIT_SUCCESS);
 }
@@ -1018,33 +1034,31 @@ static void app_prepare(OP_T *op)
 		}
 	}
 
-	signal_register();
+//	signal_register();
 }
 
 static void stream_dump(void)
 {
+	STREAM_ARRAY_T *Sarray = g_Sarray;
 	int i = 0;
-	for (auto ls = g_List.begin(); ls != g_List.end(); ++ls, i++) {
-		CAudioStream *S = (*ls);
-		const AUDIOPARAM_T *Par = S->GetParam();
 
+	for_each(Sarray->List.begin(), Sarray->List.end(),
+		[&i](CAudioStream *S)->void {
+		const AUDIOPARAM_T *Par = S->GetParam();
 		LogI("[%2d] %s \t: 0x%02x, %2d, %2d, %d, %d, %d, %d, %d\n",
-			i, S->GetName(), S->GetType(),
+			i++, S->GetName(), S->GetType(),
 			Par->Card, Par->Device, Par->Channels,
 			Par->SampleRate, Par->SampleBits,
 			Par->Periods, Par->PeriodBytes);
-	}
+	});
 }
 
 static void stream_link(CAudioStream *SS, ...)
 {
 	int max = MAX_STREAMS;
 	CAudioStream *S;
-	CAudioStream *Sarray[max];
+	CAudioStream *Sarray[max] = { NULL, };
 	int i = 0;
-
-	for (i = 0; i < max; i++)
-		Sarray[i] = NULL;
 
 	va_list args;
 	va_start(args, SS);
@@ -1099,8 +1113,11 @@ int main(int argc, char **argv)
 		[7] = { "EVT" , fn_event, op },
 	};
 
+	STREAM_ARRAY_T *Sarray;
+	g_Sarray = Sarray = new STREAM_ARRAY_T;
+
 	for (i = 0; i < static_cast<int>ARRAY_SIZE(SS); i++)
-		g_List.push_back(&SS[i]);
+		(*Sarray)(&SS[i]);
 
 	stream_dump();
 
@@ -1117,7 +1134,7 @@ int main(int argc, char **argv)
 #endif
 	pthread_setname_np(pthread_self(), "main");
 
-	for (auto ls = g_List.begin(); ls != g_List.end(); ++ls, i++) {
+	for (auto ls = Sarray->List.begin(); ls != Sarray->List.end(); ++ls, i++) {
 		CAudioStream *S = (*ls);
 		pthread_t *th = &S->Handle;
 
@@ -1140,15 +1157,16 @@ int main(int argc, char **argv)
 exit_threads:
 	streams_command(CMD_STREAM_EXIT);
 
-	for (auto ls = g_List.begin(); ls != g_List.end(); ++ls) {
-		(*ls)->ReleaseAll();
+	for_each(Sarray->List.begin(), Sarray->List.end(),
+		[](CAudioStream *S)->void {
+		S->ReleaseAll();
 #ifndef ANDROID
-		pthread_cancel((*ls)->Handle);
+		pthread_cancel(S->Handle);
 #else
-		pthread_kill((*ls)->Handle, SIGUSR1);
+		pthread_kill(S->Handle, SIGUSR1);
 #endif
-		pthread_join((*ls)->Handle, NULL);
-	}
+		pthread_join(S->Handle, NULL);
+	});
 
 	return err;
 }
