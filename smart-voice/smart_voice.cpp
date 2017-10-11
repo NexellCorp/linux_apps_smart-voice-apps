@@ -81,7 +81,9 @@ typedef struct option_t {
 	int preprocess_ch = AEC_INPUT_CH;
 	bool playback = false;
 	pthread_mutex_t lock;
-	SNDDEV_T play, ref, pdm;
+	SNDDEV_T play, ref, pdm, spk;
+	char play_file[256] = "";
+	int play_delay;
 	int mask_pdm_channel = 0;
 } OP_T;
 
@@ -361,10 +363,10 @@ static void *fn_filter(void *Data)
 	if (0 != pdm_SetParam(&pdm_st, PDM_PARAM_GAIN, op->filter_pdm_gain))
 		LogE("Failed: pdm gain parmeter [%d]!!!\n", op->filter_pdm_gain);
 
-	pWI = S->CreateWavFile(0, 0, 0, op->file_path);
+	pWI = S->CreateWavHnd(0, 0, 0, op->file_path);
 	assert(pWI);
 
-	pWO = S->CreateWavFile(sp->Channels,
+	pWO = S->CreateWavHnd(sp->Channels,
 			sp->SampleRate, sp->SampleBits,	op->file_path);
 	assert(pWO);
 
@@ -376,17 +378,17 @@ __reset:
 
 	while (!cmd_get(S, CMD_STREAM_EXIT | CMD_STREAM_RESET)) {
 		if (cmd_value(S, CMD_FILE_CAPT | CMD_FILE_PDM)) {
-			S->OpenWavFile(pWI, "%s.pdm.raw", S->GetName());
+			S->OpenWav(pWI, AUDIO_STREAM_CAPTURE, "%s.pdm.raw", S->GetName());
 			cmd_clear(S, CMD_FILE_PDM);
 		}
 
 		if (cmd_value(S, CMD_FILE_CAPT | CMD_FILE_PCM)) {
-			S->OpenWavFile(pWO, "%s.pcm.wav", S->GetName());
+			S->OpenWav(pWO, AUDIO_STREAM_CAPTURE, "%s.pcm.wav", S->GetName());
 			cmd_clear(S, CMD_FILE_PCM);
 		}
 
 		if (cmd_get(S, CMD_FILE_STOP)) {
-			S->CloseAllWavFile();
+			S->CloseAllWav();
 			cmd_clear(S, CMD_FILE_STOP);
 		}
 
@@ -425,8 +427,8 @@ __reset:
 		END_TIMESTAMP_US(ts, td);
 		SET_TIME_STAT(time, td);
 
-		S->WriteWavFile(pWI, I_Ptr, i_bytes);
-		S->WriteWavFile(pWO, O_Ptr, s_bytes);
+		S->WriteWav(pWI, I_Ptr, i_bytes);
+		S->WriteWav(pWO, O_Ptr, s_bytes);
 
 		I->RelPopBuffer(i_bytes);
 		S->RelPushBuffer(s_bytes);
@@ -434,6 +436,51 @@ __reset:
 
 	if (cmd_get(S, CMD_STREAM_RESET))
 		goto __reset;
+
+	pthread_cleanup_pop(1);
+
+	return NULL;
+}
+
+static void *fn_playout(void *Data)
+{
+	CAudioStream *S = reinterpret_cast<CAudioStream *>(Data);
+	OP_T *op = reinterpret_cast<OP_T *>(S->GetArgument());
+	int s_bytes = S->GetParam()->PeriodBytes;
+	char *Ptr = reinterpret_cast<char *>(new char[s_bytes]);
+	WAVFILE_T *pW;
+	bool Ret = false;
+
+	pthread_cleanup_push(fn_cleanup, reinterpret_cast<void *>(S));
+
+	if (!strlen(op->play_file))
+		return NULL;
+
+	if (!(pW = S->CreateWavHnd(0, 0, 0, NULL)))
+		return NULL;
+
+	if (!S->OpenWav(pW, AUDIO_STREAM_PLAYBACK, op->play_file))
+		return NULL;
+
+	if (op->spk.c == -1 && op->spk.d == -1)
+		return NULL;
+
+	if (!S->OpenAudio(AUDIO_STREAM_PLAYBACK))
+		return NULL;
+
+	cmd_clear(S, CMD_STREAM_RESET);
+
+	while (!cmd_get(S, CMD_STREAM_EXIT)) {
+		Ret = S->ReadWavLoop(pW, Ptr, s_bytes, op->play_delay);
+		if (!Ret)
+			return NULL;
+
+		int Err = S->PlayAudio(Ptr, s_bytes);
+		if (Err < 0)
+			msleep(1);
+	}
+
+	S->CloseAudio();
 
 	pthread_cleanup_pop(1);
 
@@ -514,8 +561,8 @@ static void *fn_process(void *Data)
 
 	memset(Dummy, 0, 1024);
 
-	pWI = S->CreateWavFile(i_ch, rate, bits, op->file_path);
-	pWO = S->CreateWavFile(o_ch, rate, bits, op->file_path);
+	pWI = S->CreateWavHnd(i_ch, rate, bits, op->file_path);
+	pWO = S->CreateWavHnd(o_ch, rate, bits, op->file_path);
 	assert(pWI && pWO);
 
 __reset:
@@ -528,18 +575,18 @@ __reset:
 	while (!cmd_get(S, CMD_STREAM_EXIT | CMD_STREAM_RESET)) {
 		if (cmd_value(S, CMD_FILE_CAPT | CMD_FILE_PREP_IN)) {
 			static int index = 0;
-			S->OpenWavFile(pWI, "%s.i.%d.wav", S->GetName(), index++);
+			S->OpenWav(pWI, AUDIO_STREAM_CAPTURE, "%s.i.%d.wav", S->GetName(), index++);
 			cmd_clear(S, CMD_FILE_PREP_IN);
 			is_DumpIn = true;
 		}
 
 		if (cmd_value(S, CMD_FILE_CAPT | CMD_FILE_PREP_OUT)) {
-			S->OpenWavFile(pWO, "%s.o.wav", S->GetName());
+			S->OpenWav(pWO, AUDIO_STREAM_CAPTURE, "%s.o.wav", S->GetName());
 			cmd_clear(S, CMD_FILE_PREP_OUT);
 		}
 
 		if (cmd_get(S, CMD_FILE_STOP)) {
-			S->CloseAllWavFile();
+			S->CloseAllWav();
 			cmd_clear(S, CMD_FILE_STOP);
 			is_DumpIn = false;
 		}
@@ -581,7 +628,7 @@ __reset:
 				I_Ref[0], I_Ref[1], I_Dat[0], I_Dat[1],
 				reinterpret_cast<int *>(Data), s_bytes);
 
-			S->WriteWavFile(pWI, reinterpret_cast<void *>(Data), sizeof(Data));
+			S->WriteWav(pWI, reinterpret_cast<void *>(Data), sizeof(Data));
 		}
 
 		/*
@@ -629,7 +676,7 @@ __reset:
 			}
 			memcpy(O_Ptr, src, s_bytes);
 
-			S->WriteWavFile(pWO, reinterpret_cast<void *>(O_Ptr), s_bytes);
+			S->WriteWav(pWO, reinterpret_cast<void *>(O_Ptr), s_bytes);
 			S->RelPushBuffer(s_bytes);
 		}
 	}
@@ -803,9 +850,14 @@ static void print_help(const char *name, OP_T *op)
 	LogI("\t-o : capture preprocess output data\n");
 	LogI("\t-v : pdm channel mask for test (hex)\n");
 
-	LogI("\t-P : select play sound device (card.%d, dev.%d)\n", op->play.c, op->play.d);
-	LogI("\t-I : select ref(i2s) sound device (card.%d, dev.%d)\n", op->ref.c, op->ref.d);
-	LogI("\t-S : select spi  sound device (card.%d, dev.%d)\n", op->pdm.c, op->pdm.d);
+	LogI("\t-P : select play sound device (card.%d,dev.%d), note> no space\n",
+		op->play.c, op->play.d);
+	LogI("\t-I : select ref(i2s) sound device (card.%d,dev.%d), note> no space\n",
+		op->ref.c, op->ref.d);
+	LogI("\t-S : select spi  sound device (card.%d,dev.%d), note> no space\n",
+		op->pdm.c, op->pdm.d);
+	LogI("\t-T : select speaker sound device (card.%d,dev.%d,file,delay), note> no space\n",
+		op->spk.c, op->spk.d);
 
 	LogI("\t-t : verify function with %d sec\n", VERIFY_TIME);
 	LogI("\t     %s -g 3\n", name);
@@ -817,13 +869,14 @@ static OP_T *parse_options(int argc, char **argv, unsigned int *cmd)
 {
 	OP_T *op = new OP_T;
 	int opt;
-	char *c;
+	char *c, *s;
 
 	*cmd = CMD_PRE_PROCESS;
 	pthread_mutex_init(&op->lock, NULL);
 
-	op->play.c = -1;
-	op->play.d  = -1;
+	op->play.c = -1, op->play.d = -1;
+	op->spk.c = 0, op->spk.d = 0;
+	op->play_delay = 0;
 
 #ifdef ANDROID
 	op->ref.c = 2, op->ref.d = 0;
@@ -833,7 +886,7 @@ static OP_T *parse_options(int argc, char **argv, unsigned int *cmd)
 	op->pdm.c = 0, op->pdm.d = 4;
 #endif
 
-	while (-1 != (opt = getopt(argc, argv, "his:efa:g:c:wrmotv:P:S:I:"))) {
+	while (-1 != (opt = getopt(argc, argv, "his:efa:g:c:wrmotv:P:S:I:T:"))) {
 		switch(opt) {
         	case 'i':
         		op->do_run_cmd = false;
@@ -902,6 +955,25 @@ static OP_T *parse_options(int argc, char **argv, unsigned int *cmd)
 			if (!c)
 				break;
 			op->ref.d = strtol(++c, NULL, 10);
+			break;
+		case 'T':
+			c = optarg;
+			op->spk.c = strtol(c, NULL, 10);
+			c = strchr(c, ',');
+			if (!c)
+				break;
+			op->spk.d = strtol(++c, NULL, 10);
+			c = strchr(c, ',');
+			if (!c)
+				break;
+			s = ++c;
+			c = strchr(c, ',');
+			if (!c) {
+				strcpy(op->play_file, s);
+				break;
+			}
+			strncpy(op->play_file, s, c - s);
+			op->play_delay = strtol(++c, NULL, 10);
 			break;
         	default:
         		print_help(argv[0], op);
@@ -1111,6 +1183,8 @@ int main(int argc, char **argv)
 
 		[6] = { "MON" , fn_monitor, op },
 		[7] = { "EVT" , fn_event, op },
+
+		[8] = { "TEST", STREAM_TYPE_OUT , { op->spk.c, op->spk.d, 2, 16, 48000, 2048, 16 }, fn_playout, op },
 	};
 
 	STREAM_ARRAY_T *Sarray;

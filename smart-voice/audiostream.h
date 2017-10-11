@@ -128,14 +128,17 @@ public:
 	void *GetArgument(void) { return m_pArgument; }
 
 	/* Wav File */
-	WAVFILE_T *CreateWavFile(int Ch, int Rate, int Bit, const char *Path);
-	void DeleteWavFile(WAVFILE_T *Hnd);
-	void DeleteWavFileAll(void);
+	WAVFILE_T *CreateWavHnd(int Ch, int Rate, int Bit, const char *Path);
+	void DeleteWavHnd(WAVFILE_T *Hnd);
+	void DeleteWavHndAll(void);
 
-	bool OpenWavFile(WAVFILE_T *Hnd, const char *Fmt, ...);
-	void CloseWavFile(WAVFILE_T *Hnd);
-	void CloseAllWavFile(void);
-	bool WriteWavFile(WAVFILE_T *Hnd, void *Buffer, size_t Size);
+	bool OpenWav(WAVFILE_T *Hnd,
+			enum AUDIO_STREAM_DIR dir, const char *Fmt, ...);
+	void CloseWav(WAVFILE_T *Hnd);
+	void CloseAllWav(void);
+	bool WriteWav(WAVFILE_T *Hnd, void *Buffer, size_t Size);
+	bool ReadWav(WAVFILE_T *Hnd, void *Buffer, size_t Size);
+	bool ReadWavLoop(WAVFILE_T *Hnd, void *Buffer, size_t Size, int Delay);
 
 public:
 	TIMESTEMP_T time = { 1000 * 1000, 0, 0, 0 };
