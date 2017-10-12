@@ -166,7 +166,8 @@ void CAudioStream::ClearBuffer(void)
 		AllocBuffer(pParam->PeriodBytes, pParam->Periods);
 	}
 
-	m_pBuffer->ClearBuffer();
+	if (m_pBuffer)
+		m_pBuffer->ClearBuffer();
 }
 
 void CAudioStream::WaitCleanBuffer(void)
