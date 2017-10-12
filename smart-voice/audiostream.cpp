@@ -31,7 +31,7 @@ void CAudioStream::ReleaseAll(void)
 
 	ClearBuffer();
 	CloseAudio();
-	DeleteWavFileAll();
+	DeleteWavHndAll();
 	ReleaseBuffer();
 }
 
@@ -252,7 +252,7 @@ void CAudioStream::ClearCommand(unsigned Cmd)
 	Lock(), m_Command &= ~Cmd, UnLock();
 }
 
-WAVFILE_T *CAudioStream::CreateWavFile(int Ch, int Rate, int Bit,
+WAVFILE_T *CAudioStream::CreateWavHnd(int Ch, int Rate, int Bit,
 			const char *Path)
 {
 	CWAVFile *Wav = new CWAVFile(WAV_CAPT_PERIOD);
@@ -275,7 +275,7 @@ WAVFILE_T *CAudioStream::CreateWavFile(int Ch, int Rate, int Bit,
 	return Hnd;
 }
 
-void CAudioStream::DeleteWavFile(WAVFILE_T *Hnd)
+void CAudioStream::DeleteWavHnd(WAVFILE_T *Hnd)
 {
 	auto lw = find(LWav.begin(), LWav.end(), Hnd);
 
@@ -288,9 +288,9 @@ void CAudioStream::DeleteWavFile(WAVFILE_T *Hnd)
 	delete Hnd;
 }
 
-void CAudioStream::DeleteWavFileAll(void)
+void CAudioStream::DeleteWavHndAll(void)
 {
-	CloseAllWavFile();
+	CloseAllWav();
 
 	for (auto lw = LWav.begin(); lw != LWav.end();) {
 		WAVFILE_T *Hnd = *lw;
@@ -301,29 +301,48 @@ void CAudioStream::DeleteWavFileAll(void)
 	}
 }
 
-bool CAudioStream::OpenWavFile(WAVFILE_T *Hnd, const char *Fmt, ...)
+bool CAudioStream::OpenWav(WAVFILE_T *Hnd,
+			enum AUDIO_STREAM_DIR dir, const char *Fmt, ...)
 {
 	auto lw = find(LWav.begin(), LWav.end(), Hnd);
+	bool Ret;
 
 	if (lw == LWav.end())
 		return false;
 
 	CWAVFile *Wav = (*lw)->hWav;
-	char Buf[256] = { 0, }, Path[256] = { 0, };
+	if (dir == AUDIO_STREAM_CAPTURE) {
+		char Buf[256] = { 0, }, Path[256] = { 0, };
 
-	va_list args;
+		va_list args;
+		va_start(args, Fmt);
+		vsprintf(Path, Fmt, args);
+		va_end(args);
 
-	va_start(args, Fmt);
-	vsprintf(Path, Fmt, args);
-	va_end(args);
+		strcat(Buf, Hnd->WavPath);
+		strcat(Buf, Path);
 
-	strcat(Buf, Hnd->WavPath);
-	strcat(Buf, Path);
+		Ret = Wav->Open(Hnd->Channels, Hnd->SampleRate, Hnd->SampleBits, Buf);
+	} else {
+		Ret = Wav->Open(Fmt);
+		if (!Ret)
+			return Ret;
 
-	return Wav->Open(Hnd->Channels, Hnd->SampleRate, Hnd->SampleBits, Buf);
+		AUDIOPARAM_T *pParam = &m_AudioParam;
+		const struct wav_header *wave_h = Wav->GetWaveHeader();
+
+		Hnd->Channels = wave_h->num_channels;
+		Hnd->SampleRate = wave_h->sample_rate;
+		Hnd->SampleBits = wave_h->bits_per_sample;
+
+		pParam->Channels = Hnd->Channels;
+		pParam->SampleRate = Hnd->SampleRate;
+		pParam->SampleBits = Hnd->SampleBits;
+	}
+	return Ret;
 }
 
-void CAudioStream::CloseWavFile(WAVFILE_T *Hnd)
+void CAudioStream::CloseWav(WAVFILE_T *Hnd)
 {
 	auto lw = find(LWav.begin(), LWav.end(), Hnd);
 
@@ -334,7 +353,7 @@ void CAudioStream::CloseWavFile(WAVFILE_T *Hnd)
 	Wav->Close();
 }
 
-void CAudioStream::CloseAllWavFile(void)
+void CAudioStream::CloseAllWav(void)
 {
 	for (auto lw = LWav.begin(); lw != LWav.end(); ++lw) {
 		CWAVFile *Wav = (*lw)->hWav;
@@ -342,7 +361,7 @@ void CAudioStream::CloseAllWavFile(void)
 	}
 }
 
-bool CAudioStream::WriteWavFile(WAVFILE_T *Hnd, void *Buffer, size_t Size)
+bool CAudioStream::WriteWav(WAVFILE_T *Hnd, void *Buffer, size_t Size)
 {
 	auto lw = find(LWav.begin(), LWav.end(), Hnd);
 
@@ -352,4 +371,29 @@ bool CAudioStream::WriteWavFile(WAVFILE_T *Hnd, void *Buffer, size_t Size)
 	CWAVFile *Wav = (*lw)->hWav;
 
 	return Wav->Write(Buffer, Size);
+}
+
+bool CAudioStream::ReadWav(WAVFILE_T *Hnd, void *Buffer, size_t Size)
+{
+	auto lw = find(LWav.begin(), LWav.end(), Hnd);
+
+	if (lw == LWav.end())
+		return false;
+
+	CWAVFile *Wav = (*lw)->hWav;
+
+	return Wav->Read(Buffer, Size);
+}
+
+bool CAudioStream::ReadWavLoop(WAVFILE_T *Hnd,
+			void *Buffer, size_t Size, int Delay)
+{
+	auto lw = find(LWav.begin(), LWav.end(), Hnd);
+
+	if (lw == LWav.end())
+		return false;
+
+	CWAVFile *Wav = (*lw)->hWav;
+
+	return Wav->ReadLoop(Buffer, Size, Delay);
 }

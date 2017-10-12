@@ -18,6 +18,26 @@ extern "C" {
 
 #define FORMAT_PCM 1
 
+struct riff_wave_header {
+    uint32_t riff_id;
+    uint32_t riff_sz;
+    uint32_t wave_id;
+};
+
+struct chunk_header {
+    uint32_t id;
+    uint32_t sz;
+};
+
+struct chunk_fmt {
+    uint16_t audio_format;
+    uint16_t num_channels;
+    uint32_t sample_rate;
+    uint32_t byte_rate;
+    uint16_t block_align;
+    uint16_t bits_per_sample;
+};
+
 struct wav_header {
 	uint32_t riff_id;
 	uint32_t riff_sz;
@@ -49,6 +69,7 @@ class CWAVFile {
 		m_SampleRate = 0;
 		m_SampleBits = 0;
 		m_WriteBytes = 0;
+		m_ReadBytes = 0;
 		m_bWavFormat = true;
 
 		memset(m_strName, 0, sizeof(m_strName));
@@ -62,6 +83,7 @@ class CWAVFile {
 		m_SampleRate = 0;
 		m_SampleBits = 0;
 		m_WriteBytes = 0;
+		m_ReadBytes = 0;
 		m_bWavFormat = true;
 
 		memset(m_strName, 0, sizeof(m_strName));
@@ -131,19 +153,102 @@ class CWAVFile {
 		return true;
 	}
 
+	bool Open(const char *path) {
+		struct wav_header *header = &m_WavHeader;
+		struct riff_wave_header riff_wave_header;
+		struct chunk_header chunk_header;
+    		struct chunk_fmt chunk_fmt;
+		int more_chunks = 1;
+		bool Ret = false;
+
+		Lock();
+
+		m_hFile = fopen(path, "rb");
+		if (!m_hFile) {
+			LogE("Unable to create file '%s' !!!\n", path);
+			UnLock();
+			return false;
+		}
+
+		if (fread(&riff_wave_header, sizeof(riff_wave_header), 1, m_hFile) != 1){
+            		LogE("Error: '%s' does not contain a riff/wave header\n", path);
+			goto wav_error;
+        	}
+	        if ((riff_wave_header.riff_id != ID_RIFF) ||
+        	    (riff_wave_header.wave_id != ID_WAVE)) {
+            		LogE("Error: '%s' is not a riff/wave file\n", path);
+            		goto wav_error;
+        	}
+
+        	do {
+            		if (fread(&chunk_header, sizeof(chunk_header), 1, m_hFile) != 1){
+                		LogE("Error: '%s' does not contain a data chunk\n", path);
+                		goto wav_error;
+            		}
+
+            		switch (chunk_header.id) {
+            		case ID_FMT:
+                		if (fread(&chunk_fmt, sizeof(chunk_fmt), 1, m_hFile) != 1){
+                    			LogE("Error: '%s' has incomplete format chunk\n", path);
+                    			goto wav_error;
+                		}
+                		/* If the format header is larger, skip the rest */
+                		if (chunk_header.sz > sizeof(chunk_fmt))
+                    			fseek(m_hFile, chunk_header.sz - sizeof(chunk_fmt), SEEK_CUR);
+                		break;
+            		case ID_DATA:
+                		/* Stop looking for chunks */
+                		more_chunks = 0;
+                		break;
+            		default:
+                		/* Unknown chunk, skip bytes */
+                		fseek(m_hFile, chunk_header.sz, SEEK_CUR);
+            		}
+        	} while (more_chunks);
+
+		m_bWavFormat = true;
+		strcpy(m_strName, path);
+
+		header->riff_id = riff_wave_header.riff_id;
+		header->riff_sz = riff_wave_header.riff_sz;
+		header->riff_fmt = riff_wave_header.wave_id;
+		header->fmt_id = chunk_header.id;
+		header->fmt_sz = chunk_header.sz;
+		header->audio_format = chunk_fmt.audio_format;
+		header->num_channels = chunk_fmt.num_channels;
+		header->sample_rate = chunk_fmt.sample_rate;
+		header->byte_rate = chunk_fmt.byte_rate;
+		header->block_align = chunk_fmt.block_align;
+		header->bits_per_sample = chunk_fmt.bits_per_sample;
+
+		m_Channels = chunk_fmt.num_channels;
+		m_SampleRate = chunk_fmt.sample_rate;
+		m_SampleBits = chunk_fmt.bits_per_sample;
+		m_ReadBytes = 0;
+		Ret = true;
+
+		LogI(" %s open : %s %d ch, %d hz, %d bits\n",
+			m_bWavFormat ? "WAV" : "RAW", m_strName, m_Channels,
+			m_SampleRate, m_SampleBits);
+
+	wav_error:
+		UnLock();
+		return Ret;
+	}
+
 	void Close(void) {
 		struct wav_header *header = &m_WavHeader;
 
 		if (!m_hFile)
 			return;
 
-		LogI(" %s close: %s %d ch, %d hz, %d bits, %lld bytes\n",
+		LogI(" %s close: %s %d ch, %d hz, %d bits, w %lld, r %lld bytes\n",
 			m_bWavFormat ? "WAV" : "RAW", m_strName,
-			m_Channels, m_SampleRate, m_SampleBits, m_WriteBytes);
+			m_Channels, m_SampleRate, m_SampleBits, m_WriteBytes, m_ReadBytes);
 
 		Lock();
 
-		if (m_bWavFormat) {
+		if (m_bWavFormat && m_WriteBytes) {
 			long long frames = m_WriteBytes /
 				((m_SampleBits / 8) * m_Channels);
 			/* write header now all information is known */
@@ -159,6 +264,7 @@ class CWAVFile {
 
 		m_hFile = NULL;
 		m_WriteBytes = 0;
+		m_ReadBytes = 0;
 		m_SavePeriodAvail = 0;
 
 		memset(m_strName, 0, sizeof(m_strName));
@@ -202,7 +308,38 @@ class CWAVFile {
 		return true;
 	}
 
+	bool Read(void *buffer, size_t size) {
+		if (!m_hFile)
+			return false;
+
+		Lock();
+
+		if (size != fread(buffer, 1, size, m_hFile)) {
+			UnLock();
+			return false;
+		}
+
+		m_ReadBytes += size;
+
+		UnLock();
+
+		return true;
+	}
+
+	bool ReadLoop(void *buffer, size_t size, int delay_ms) {
+		bool Ret = Read(buffer, size);
+
+		if (!Ret) {
+			fseek(m_hFile,  sizeof(struct wav_header), SEEK_SET);
+			usleep(delay_ms * 1000);
+			Ret = Read(buffer, size);
+		}
+
+		return Ret;
+	}
+
 	const char *GetName(void) { return m_strName; }
+	const struct wav_header *GetWaveHeader(void) { return &m_WavHeader; }
 
 	private:
 	void Lock(void)   { }
@@ -214,6 +351,7 @@ class CWAVFile {
 
 	char m_strName[512];
 	long long m_WriteBytes;
+	long long m_ReadBytes;
 	int  m_Channels, m_SampleRate, m_SampleBits;
 	bool m_bWavFormat;
 	long long m_SavePeriodBytes;
