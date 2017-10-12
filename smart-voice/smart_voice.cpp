@@ -551,8 +551,9 @@ __reset:
 
 			if (STYPE((*ls), STREAM_TYPE_PDM)) {
 				/* for SPLIT copy  [L0/R0/L1/R1] -> [L0/R0 .....][L1/R1 ....]*/
-				pcm_split((int *)I_Ptr[i],
-					(int *)I_Dat[0], (int *)I_Dat[1], bytes);
+				if (I_Ptr[i])
+					pcm_split((int *)I_Ptr[i],
+						(int *)I_Dat[0], (int *)I_Dat[1], bytes);
 			} else  if (STYPE((*ls), STREAM_TYPE_REF)) {
 				I_Ref[r++] = I_Ptr[i] ? reinterpret_cast<int *>(I_Ptr[i]) : Dummy;
 			} else {
@@ -1086,7 +1087,7 @@ int main(int argc, char **argv)
 
 	CAudioStream SS[] = {
 		[0] = { "REF0", STREAM_TYPE_REF, {  op->ref.c, op->ref.d, 2, 16, 48000, 4096, 16 }, fn_capture, op },
-		[1] = { "PDM0", STREAM_TYPE_PDM, {  op->pdm.c, op->pdm.d, 2, 16, 64000, 8192,  8 }, fn_capture, op },
+		[1] = { "PDM0", STREAM_TYPE_PDM, {  op->pdm.c, op->pdm.d, 2, 16, 64000, 4096, 16 }, fn_capture, op },
 
 		[2] = { "RES0", STREAM_TYPE_REF | STREAM_TYPE_RES, { -1, -1, 2, 16, 16000, 2048, 16 }, fn_resample, op },
 		[3] = { "FLT0", STREAM_TYPE_PDM | STREAM_TYPE_FLT, { -1, -1, 4, 16, 16000, 2048, 16 }, fn_filter, op },
