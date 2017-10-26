@@ -1,0 +1,11 @@
+This apllication convert pdm data to wave file.
+
+example 1) 4 channel PDM raw data ( data/input.raw )
+  #> ./pdm_test -i data/input.raw -o output_4ch.wav
+
+example 2) 1 channel PDM raw data ( data/input.raw_ch1.raw )
+  #> ./pdm_test -i data/input.raw_ch1.raw -o output_ch1.wav -c 1
+
+example 3) 4 channel reconstructed PMD raw data ( data/input.raw_recon_ch.raw )
+  #> ./pdm_test -i data/input.raw_recon_ch.raw -o output_recon_4ch.wave -c 4
+

@@ -1,0 +1,11 @@
+split_pdm
+
+1. This application split 4 channel pmd data to each channel pdm data.
+2. example )
+  $> ./split_pdm input.raw
+3. Output files
+  a. input.raw_ch0.raw
+  b. input.raw_ch1.raw
+  c. input.raw_ch2.raw
+  d. input.raw_ch3.raw
+  e. input.raw_rcon_ch.raw
