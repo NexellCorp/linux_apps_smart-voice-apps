@@ -34,7 +34,7 @@ extern "C" {
 #define	PDM_PERIOD_BYTES_OUT	(2048)
 #define	PDM_FILTER_FASTMODE	(0)
 #define	PDM_FILTER_AGC_DB	(0)
-#define PDM_FILTER_PDM_GAIN	(4)
+#define PDM_FILTER_PDM_GAIN	(PARAM_GAIN_DEF)
 #define	REF_SAMPLE_RATE		(48000)
 #define	LOG_PROMPT		LogI("#>")
 

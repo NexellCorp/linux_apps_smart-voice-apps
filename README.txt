@@ -1,5 +1,11 @@
 Release Note :
- 2017-09-07 : Released by Seongo Park
+ 2017-10-25 : Released by SeongO Park
+  1. add test application for libagcpmd library.(test-libagcpdm)
+    ( please see the test-libagcpdm/READM & test-libagpdm/data/README )
+  2. enhanced libagcpdm performance.
+  3. adjust pdm gain for prevent clipping.
+
+ 2017-09-07 : Released by SeongO Park
   1. added output format control parameter "PCM_OUT_INTERLEAVED".
      The default value is PARAM_OUT_INTERLEAVED.
      ( See the OUT_INTERLEAVED Paramter in the nx_pdm.h file ) 

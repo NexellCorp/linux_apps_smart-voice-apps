@@ -25,9 +25,9 @@ enum {
  *  The smaller the value, the larger the output output.
  *  The larger the value, the smaller the output output.
  */
-#define	PARAM_GAIN_MIN		(2)
+#define	PARAM_GAIN_MIN		(0)
 #define	PARAM_GAIN_MAX		(6)
-#define	PARAM_GAIN_DEF		(4)
+#define	PARAM_GAIN_DEF		(0)
 
 /*
  * OUT INTERLEAVED Parameter:
@@ -101,7 +101,7 @@ typedef struct {
 	int Sigma1[4], Sigma2[4], Sigma3[4], Sigma4[4], Sigma5[4];
 	int Delta1[4], Delta2[4], Delta3[4], Delta4[4];
 	int OldDelta1[4], OldDelta2[4], OldDelta3[4], OldDelta4[4];
-	int OldSigma5[4];
+	int OldSigma4[4];
 	int ScaleValue;
 	int OutInterleaved;
 } pdm_STATDEF;
