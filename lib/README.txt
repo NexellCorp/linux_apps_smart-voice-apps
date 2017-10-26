@@ -1,4 +1,8 @@
 Version information
+ 1.0.3
+  1. Adjust gain control for prevent cliping.
+  2. Change PDM gain control range to 0 ~ 4.
+
  0.11.2
   1. Added output format control parameter "PCM_OUT_INTERLEAVED".
      The default value is PARAM_OUT_INTERLEAVED.

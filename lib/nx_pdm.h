@@ -1,9 +1,9 @@
 #ifndef NX_PDM_H
 #define NX_PDM_H
 
-#define AGCPDM_MAJOR_VER	(0)
-#define AGCPDM_MINOR_VER	(11)
-#define AGCPDM_REV			(2)
+#define AGCPDM_MAJOR_VER	(1)
+#define AGCPDM_MINOR_VER	(0)
+#define AGCPDM_REV			(3)
 
 
 /*
