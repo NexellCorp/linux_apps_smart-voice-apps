@@ -1090,7 +1090,6 @@ static void signal_register(void)
 
 	sigaction(SIGINT , &sact, 0);
 	sigaction(SIGTERM, &sact, 0);
-	sigaction(SIGSEGV, &sact, 0);
 }
 
 static void app_prepare(OP_T *op)
