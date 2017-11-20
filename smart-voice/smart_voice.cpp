@@ -6,6 +6,10 @@
 #include <pthread.h>
 #include <assert.h>
 
+#ifdef NOUGAT
+#include <algorithm>
+#endif
+
 #include "qbuff.h"
 #include "wav.h"
 #include "resample.h"
@@ -14,6 +18,10 @@
 
 #include "util.h"
 #include "nx_pdm.h"
+
+#ifdef NOUGAT
+using namespace std;
+#endif
 
 #ifdef SUPPORT_PRE_PROCESS
 extern "C" {
@@ -1128,7 +1136,11 @@ static void stream_link(CAudioStream *SS, ...)
 {
 	int max = MAX_STREAMS;
 	CAudioStream *S;
+#ifdef NOUGAT
+	CAudioStream *Sarray[MAX_STREAMS] = { NULL, };
+#else
 	CAudioStream *Sarray[max] = { NULL, };
+#endif
 	int i = 0;
 
 	va_list args;
@@ -1147,7 +1159,11 @@ static void stream_link(CAudioStream *SS, ...)
 
 		LogI("[%s] --> ", Sarray[i-1]->GetName());
 
+#ifdef NOUGAT
+		auto lw = ::find(S->LStream.begin(), S->LStream.end(), Sarray[i-1]);
+#else
 		auto lw = find(S->LStream.begin(), S->LStream.end(), Sarray[i-1]);
+#endif
 		if (lw != S->LStream.end())
 			continue;
 

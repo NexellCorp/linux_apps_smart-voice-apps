@@ -108,7 +108,11 @@ bool CAudioPlayer::Open(const char *Name, int Card, int Device,
 	}
 
 	if (Name && strlen(Name))
+#ifdef NOUGAT
+		snprintf(m_PcmName, strlen(Name), "%s", Name);
+#else
 		snprintf(m_PcmName, strlen(Name), Name);
+#endif
 
 	m_Card = Card;
 	m_Device = Device;
