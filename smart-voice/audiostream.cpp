@@ -16,6 +16,17 @@ CAudioStream::CAudioStream(const char *Name,
 }
 
 CAudioStream::CAudioStream(const char *Name,
+			int Type,
+			void *(*Fn)(void *),
+			void *Arg)
+{
+	m_pName = Name, m_Type = Type, FN = Fn;
+	m_pArgument = Arg;
+
+	pthread_mutex_init(&m_Lock, NULL);
+}
+
+CAudioStream::CAudioStream(const char *Name,
 			void *(*Fn)(void *),
 			void *Arg)
 {

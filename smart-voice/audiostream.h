@@ -82,6 +82,11 @@ public:
 		void *Arg = NULL);
 
 	CAudioStream(const char *Name = NULL,
+		int Type = -1,
+		void *(*Fn)(void *) = NULL,
+		void *Arg = NULL);
+
+	CAudioStream(const char *Name = NULL,
 		void *(*Fn)(void *) = NULL,
 		void *Arg = NULL);
 

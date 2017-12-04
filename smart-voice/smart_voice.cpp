@@ -54,6 +54,9 @@ extern "C" {
 #define	STREAM_TYPE_FLT		(1<<3) /* PCM Filter */
 #define	STREAM_TYPE_RES		(1<<4) /* resampler */
 #define	STREAM_TYPE_PREP	(1<<5) /* Pre-Process */
+#define	STREAM_TYPE_MON		(1<<6) /* Monitor */
+#define	STREAM_TYPE_EVT		(1<<7) /* Event */
+#define	STREAM_TYPE_TEST	(1<<8) /* TEST */
 
 #define	STYPE(s, t)		((reinterpret_cast<CAudioStream *>(s))->GetType() & t)
 
@@ -93,6 +96,7 @@ typedef struct option_t {
 	char play_file[256] = "";
 	int play_delay;
 	int mask_pdm_channel = 0;
+	bool no_reference;
 } OP_T;
 
 typedef struct stream_array {
@@ -183,7 +187,7 @@ __reset:
 		if (!Ptr)
 			continue;
 
-		if (Ret && !cmd_get(S, CMD_STREAM_NOREF)) {
+		if (Ret) {
 			RUN_TIMESTAMP_US(ts);
 
 			int Err = S->PlayAudio(Ptr, s_bytes);
@@ -423,9 +427,8 @@ __reset:
 			if (op->mask_pdm_channel > 0xf)
 				op->mask_pdm_channel = 0xf;
 
-			for (int i = 0; i < i_bytes; i++, p++) {
+			for (int i = 0; i < i_bytes; i++, p++)
 				 *p &= (op->mask_pdm_channel | (op->mask_pdm_channel << 4));
-			}
 		}
 
 		RUN_TIMESTAMP_US(ts);
@@ -806,6 +809,8 @@ static void *fn_event(void *Data)
 	int Size = ARRAY_SIZE(Buffer);
 	struct timeval tv;
 	CAudioStream *S = reinterpret_cast<CAudioStream *>(Data);
+	OP_T *op = reinterpret_cast<OP_T *>(
+			(reinterpret_cast<CAudioStream *>(Data))->GetArgument());
 
 	Fd = audio_event_init();
 	if (Fd < 0) {
@@ -823,13 +828,15 @@ static void *fn_event(void *Data)
 		if (evt.sample_rate) {
 			LogI("\n***** (%6ld.%06ld s) Rate [%dhz]*****\n",
 				tv.tv_sec, tv.tv_usec, evt.sample_rate);
-			streams_command(CMD_STREAM_RESET, CMD_STREAM_NOREF);
+			if (!op->no_reference)
+				streams_command(CMD_STREAM_RESET, CMD_STREAM_NOREF);
 		}
 
 		if (evt.sample_msg && !strcmp(evt.sample_msg, "YES")) {
 			LogI("\n***** (%6ld.%06ld s) NO REF *****\n",
 				tv.tv_sec, tv.tv_usec);
-			streams_command(CMD_STREAM_NOREF);
+			if (!op->no_reference)
+				streams_command(CMD_STREAM_NOREF);
 		}
 	}
 
@@ -856,6 +863,7 @@ static void print_help(const char *name, OP_T *op)
 	LogI("\t-r : capture pdm input raw data \n");
 	LogI("\t-m : capture pdm pcm data\n");
 	LogI("\t-o : capture preprocess output data\n");
+	LogI("\t-n : Not exist reference signal !!!\n");
 	LogI("\t-v : pdm channel mask for test (hex)\n");
 
 	LogI("\t-P : select play sound device (card.%d,dev.%d), note> no space\n",
@@ -885,6 +893,7 @@ static OP_T *parse_options(int argc, char **argv, unsigned int *cmd)
 	op->play.c = -1, op->play.d = -1;
 	op->spk.c = 0, op->spk.d = 0;
 	op->play_delay = 0;
+	op->no_reference = false;
 
 #ifdef ANDROID
 	op->ref.c = 2, op->ref.d = 0;
@@ -894,7 +903,7 @@ static OP_T *parse_options(int argc, char **argv, unsigned int *cmd)
 	op->pdm.c = 0, op->pdm.d = 4;
 #endif
 
-	while (-1 != (opt = getopt(argc, argv, "his:efa:g:c:wrmotv:P:S:I:T:"))) {
+	while (-1 != (opt = getopt(argc, argv, "his:efa:g:c:wrmotnv:P:S:I:T:"))) {
 		switch(opt) {
         	case 'i':
         		op->do_run_cmd = false;
@@ -934,6 +943,10 @@ static OP_T *parse_options(int argc, char **argv, unsigned int *cmd)
        			*cmd |= (CMD_FILE_CAPT | CMD_FILE_PREP_OUT);
        			op->capture |= CMD_FILE_PREP_OUT;
        			break;
+       		case 'n':
+       			*cmd |= CMD_STREAM_NOREF;
+       			op->no_reference = true;
+			break;
         	case 'v':
         		op->mask_pdm_channel = strtoul(optarg, NULL, 16);
         		break;
@@ -947,6 +960,7 @@ static OP_T *parse_options(int argc, char **argv, unsigned int *cmd)
 			if (!c)
 				break;
 			op->play.d = strtol(++c, NULL, 10);
+			op->playback = true;
 			break;
 		case 'S':
 			c = optarg;
@@ -1136,11 +1150,7 @@ static void stream_link(CAudioStream *SS, ...)
 {
 	int max = MAX_STREAMS;
 	CAudioStream *S;
-#ifdef NOUGAT
 	CAudioStream *Sarray[MAX_STREAMS] = { NULL, };
-#else
-	CAudioStream *Sarray[max] = { NULL, };
-#endif
 	int i = 0;
 
 	va_list args;
@@ -1158,7 +1168,6 @@ static void stream_link(CAudioStream *SS, ...)
 			continue;
 
 		LogI("[%s] --> ", Sarray[i-1]->GetName());
-
 #ifdef NOUGAT
 		auto lw = ::find(S->LStream.begin(), S->LStream.end(), Sarray[i-1]);
 #else
@@ -1171,6 +1180,18 @@ static void stream_link(CAudioStream *SS, ...)
 	}
 
 	va_end(args);
+}
+
+static bool stream_is_valid(OP_T *op, CAudioStream *S)
+{
+	if (!S || !S->FN)
+		return false;
+
+	if (op->no_reference) {
+		if (STYPE(S, (STREAM_TYPE_REF | STREAM_TYPE_EVT)))
+			return false;
+	}
+	return true;
 }
 
 int main(int argc, char **argv)
@@ -1194,26 +1215,34 @@ int main(int argc, char **argv)
 		[3] = { "FLT0", STREAM_TYPE_PDM | STREAM_TYPE_FLT, { -1, -1, 4, 16, 16000, 2048, 16 }, fn_filter, op },
 
 		[4] = { "PREP", STREAM_TYPE_PREP, { -1, -1, 2, 16, 16000, 1024, 64 }, fn_process, op },
-		[5] = { "PLAY", STREAM_TYPE_OUT , { op->play.c, op->play.d, 2, 16, 16000, 4096, 16 }, fn_playback, op },
+		[5] = { "PLAY", STREAM_TYPE_OUT , { op->play.c, op->play.d, 2, 16, 48000, 4096, 16 }, fn_playback, op },
 
-		[6] = { "MON" , fn_monitor, op },
-		[7] = { "EVT" , fn_event, op },
+		[6] = { "MON" , STREAM_TYPE_MON, fn_monitor, op },
+		[7] = { "EVT" , STREAM_TYPE_EVT, fn_event, op },
 
-		[8] = { "TEST", STREAM_TYPE_OUT , { op->spk.c, op->spk.d, 2, 16, 48000, 2048, 16 }, fn_playout, op },
+		[8] = { "TEST", STREAM_TYPE_OUT | STREAM_TYPE_TEST, { op->spk.c, op->spk.d, 2, 16, 48000, 2048, 16 }, fn_playout, op },
 	};
 
 	STREAM_ARRAY_T *Sarray;
 	g_Sarray = Sarray = new STREAM_ARRAY_T;
 
-	for (i = 0; i < static_cast<int>ARRAY_SIZE(SS); i++)
+	for (i = 0; i < static_cast<int>ARRAY_SIZE(SS); i++) {
+		if (!stream_is_valid(op, &SS[i]))
+			continue;
 		(*Sarray)(&SS[i]);
+	}
 
 	stream_dump();
 
-	/* REF  -> RESAMPLER 0 -> PRE-PRO -> PLAY */
-	stream_link(&SS[0], &SS[2], &SS[4], &SS[5], NULL);
-	/* PDM0 -> FILTER 0 -> PRE-PRO -> PLAY */
-	stream_link(&SS[1], &SS[3], &SS[4], &SS[5], NULL);
+	if (op->no_reference) {
+		/* PDM0 -> FILTER 0 -> PRE-PRO -> PLAY */
+		stream_link(&SS[1], &SS[3], &SS[4], &SS[5], NULL);
+	} else {
+		/* REF  -> RESAMPLER 0 -> PRE-PRO -> PLAY */
+		stream_link(&SS[0], &SS[2], &SS[4], &SS[5], NULL);
+		/* PDM0 -> FILTER 0 -> PRE-PRO -> PLAY */
+		stream_link(&SS[1], &SS[3], &SS[4], &SS[5], NULL);
+	}
 
 #ifdef SUPPORT_PRE_PROCESS
 	if (op->do_preprocess) {
@@ -1223,16 +1252,16 @@ int main(int argc, char **argv)
 #endif
 	pthread_setname_np(pthread_self(), "main");
 
-	for (auto ls = Sarray->List.begin(); ls != Sarray->List.end(); ++ls, i++) {
+	for (auto ls = Sarray->List.begin(); ls != Sarray->List.end(); ++ls) {
 		CAudioStream *S = (*ls);
 		pthread_t *th = &S->Handle;
 
-		if (!S->FN)
+		if (!stream_is_valid(op, S))
 			continue;
 
 		if (0 != pthread_create(th, NULL, S->FN, reinterpret_cast<void *>(S))) {
-	    		LogE("Fail: thread.%d create, %s (%s)!\n",
-	    			i, S->GetName(), strerror(errno));
+	    		LogE("Fail: thread create, %s (%s)!\n",
+	    			S->GetName(), strerror(errno));
 	    		err = EXIT_FAILURE;
   			goto exit_threads;
 		}
