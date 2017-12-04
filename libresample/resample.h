@@ -76,12 +76,16 @@ void av_freep(void *arg);
 typedef signed char			int8_t;
 typedef	signed short int	int16_t;
 typedef signed int			int32_t;
+#ifdef __INT64_TYPE
 typedef	signed long long	int64_t;
+#endif
 
 typedef unsigned char		uint8_t;
 typedef	unsigned short int	uint16_t;
 typedef unsigned int		uint32_t;
+#ifdef __UINT64_TYPE
 typedef unsigned long long	uint64_t;
+#endif
 
 #ifndef M_PI
 #define M_PI	3.14159265358979323846
