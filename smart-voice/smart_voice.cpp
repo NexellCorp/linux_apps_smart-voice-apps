@@ -1218,9 +1218,10 @@ int main(int argc, char **argv)
 		[5] = { "PLAY", STREAM_TYPE_OUT , { op->play.c, op->play.d, 2, 16, 48000, 4096, 16 }, fn_playback, op },
 
 		[6] = { "MON" , STREAM_TYPE_MON, fn_monitor, op },
+#ifndef NOUGAT
 		[7] = { "EVT" , STREAM_TYPE_EVT, fn_event, op },
-
 		[8] = { "TEST", STREAM_TYPE_OUT | STREAM_TYPE_TEST, { op->spk.c, op->spk.d, 2, 16, 48000, 2048, 16 }, fn_playout, op },
+#endif
 	};
 
 	STREAM_ARRAY_T *Sarray;
