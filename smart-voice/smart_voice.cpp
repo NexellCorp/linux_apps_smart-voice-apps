@@ -369,10 +369,10 @@ static void *fn_filter(void *Data)
 	pthread_cleanup_push(fn_cleanup, reinterpret_cast<void *>(S));
 
 	/* Initialize PDM-AGC */
-	pdm_STATDEF pdm_st;
-	pdm_Init(&pdm_st);
+	pdm_STATDEF *hPdm;
+	pdm_Init(&hPdm);
 
-	if (0 != pdm_SetParam(&pdm_st, PDM_PARAM_GAIN, op->filter_pdm_gain))
+	if (0 != pdm_SetParam(hPdm, PDM_PARAM_GAIN, op->filter_pdm_gain))
 		LogE("Failed: pdm gain parmeter [%d]!!!\n", op->filter_pdm_gain);
 
 	pWI = S->CreateWavHnd(0, 0, 0, op->file_path);
@@ -433,7 +433,7 @@ __reset:
 
 		RUN_TIMESTAMP_US(ts);
 
-		pdm_Run(&pdm_st, (short int*)O_Ptr, (int*)I_Ptr, agc_dB);
+		pdm_Run(hPdm, (short int*)O_Ptr, (int*)I_Ptr, agc_dB);
 
 		END_TIMESTAMP_US(ts, td);
 		SET_TIME_STAT(time, td);
@@ -448,6 +448,7 @@ __reset:
 	if (cmd_get(S, CMD_STREAM_RESET))
 		goto __reset;
 
+	pdm_Deinit(hPdm);
 	pthread_cleanup_pop(1);
 
 	return NULL;
