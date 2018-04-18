@@ -1,4 +1,9 @@
 Version information
+ 1.1.0
+  1. Support multiple instance.
+  2. pdm_Deinit() added for instance destory.
+     User should be call pdm_Deinit() to prevent memory leakage.
+
  1.0.3
   1. Adjust gain control for prevent cliping.
   2. Change PDM gain control range to 0 ~ 4.

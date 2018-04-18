@@ -2,9 +2,10 @@
 #define NX_PDM_H
 
 #define AGCPDM_MAJOR_VER	(1)
-#define AGCPDM_MINOR_VER	(0)
-#define AGCPDM_REV			(3)
+#define AGCPDM_MINOR_VER	(1)
+#define AGCPDM_REV			(0)
 
+#define SAMPLE_LENGTH_PDM	256
 
 /*
  * API usage :
@@ -104,13 +105,29 @@ typedef struct {
 	int OldSigma4[4];
 	int ScaleValue;
 	int OutInterleaved;
+
+	short CICResult[4][SAMPLE_LENGTH_PDM*4];
+	short lpf8K_Frame[4][SAMPLE_LENGTH_PDM*4];
+	short hbf1_Frame[4][SAMPLE_LENGTH_PDM*2];
+	short hbf2_Frame[4][SAMPLE_LENGTH_PDM];
+	
+	pdmLPF_STATDEF lpf8k_st[4];
+	pdmHBF_STATDEF hbf1_st[4];
+	pdmHBF_STATDEF hbf2_st[4];
+	
 } pdm_STATDEF;
 
 /*
  * pdm_Init - initialize pdm to pcm function
  * @pdm_STATDEF: address of the stativ variable structure
  */
-void pdm_Init(pdm_STATDEF *pdm_STATDEF);
+void pdm_Init(pdm_STATDEF **pdm_STATDEF);
+
+/*
+ * pdm_Deinit - De-initialize pdm to pcm function
+ * @pdm_STATDEF: address of the stativ variable structure
+ */
+void pdm_Deinit(pdm_STATDEF *pdm_STATDEF);
 
 /**
  * pdm_Run - covert 4 channel pdm raw data to 4 channel pcm data
