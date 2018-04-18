@@ -23,8 +23,6 @@ struct sWAVE {
 	unsigned int 	Subchunk2Size;
 } Wave;
 
-pdm_STATDEF	pdm_st;
-
 #define	FRAME_LENGTH		(256)
 #define PDM_LENGTH			(8192)
 #define OUT_FREQ			(16000)
@@ -57,7 +55,7 @@ int pdm_main(const char *input, const char *output)
 	char outFile[1024];
 	int64_t totalTime;
 
-
+	pdm_STATDEF	*hPdm;
 
 	//	open input file
 	fp=fopen(input,"rb");
@@ -87,7 +85,7 @@ int pdm_main(const char *input, const char *output)
 
 	//-------------------------------------------------------------
 	// AGC
-	pdm_Init (&pdm_st);
+	pdm_Init (&hPdm);
 
 	//	Normal Mode
 	{
@@ -100,7 +98,7 @@ int pdm_main(const char *input, const char *output)
 		for (int i=0; i<numFrames; i++)	
 		{
 			//	AGC Off
-			pdm_Run_channel (&pdm_st, pResult+(i*FRAME_LENGTH*4), pPDM+i*FRAME_LENGTH*8, 0, 4, 0, 0);
+			pdm_Run_channel (hPdm, pResult+(i*FRAME_LENGTH*4), pPDM+i*FRAME_LENGTH*8, 0, 4, 0, 0);
 		}
 		gettimeofday(&tv, NULL);
 		end = (int64_t)tv.tv_sec * 1000  + tv.tv_usec/1000;
@@ -120,7 +118,7 @@ int pdm_main(const char *input, const char *output)
 		for (int i=0; i<numFrames; i++)	
 		{
 			//	AGC Off & Fast Mode
-			pdm_Run_channel (&pdm_st, pResult+(i*FRAME_LENGTH*4), pPDM+i*FRAME_LENGTH*8, 0, 4, 0, 1);
+			pdm_Run_channel (hPdm, pResult+(i*FRAME_LENGTH*4), pPDM+i*FRAME_LENGTH*8, 0, 4, 0, 1);
 		}
 		gettimeofday(&tv, NULL);
 		end = (int64_t)tv.tv_sec * 1000  + tv.tv_usec/1000;
@@ -129,6 +127,7 @@ int pdm_main(const char *input, const char *output)
 		hWave->Close();
 		delete hWave;
 	}
+	pdm_Deinit (hPdm);
 
 	printf("done\n");
 
@@ -151,6 +150,7 @@ int single_main(const char *input, const char *output , int32_t channels)
 	int64_t start, end;	//	usec
 	char outFile[1024];
 	int64_t totalTime;
+	pdm_STATDEF	*hPdm;
 
 	//	open input file
 	fp=fopen(input,"rb");
@@ -179,7 +179,7 @@ int single_main(const char *input, const char *output , int32_t channels)
 
 	//-------------------------------------------------------------
 	// AGC
-	pdm_Init (&pdm_st);
+	pdm_Init (&hPdm);
 
 	if( channels == 1 )
 	{
@@ -194,7 +194,7 @@ int single_main(const char *input, const char *output , int32_t channels)
 			for (int i=0; i<numFrames; i++)	
 			{
 				//	AGC Off
-				pdm_Run_filter(&pdm_st, pResult+i*FRAME_LENGTH, pPDM+i*FRAME_LENGTH*2, 0, 0, 0);
+				pdm_Run_filter(hPdm, pResult+i*FRAME_LENGTH, pPDM+i*FRAME_LENGTH*2, 0, 0, 0);
 			}
 			gettimeofday(&tv, NULL);
 			end = (int64_t)tv.tv_sec * 1000  + tv.tv_usec/1000;
@@ -214,7 +214,7 @@ int single_main(const char *input, const char *output , int32_t channels)
 			for (int i=0; i<numFrames; i++)	
 			{
 				//	AGC Off & Fast Mode
-				pdm_Run_filter(&pdm_st, pResult+i*FRAME_LENGTH, pPDM+i*FRAME_LENGTH*2, 0, 0, 1);
+				pdm_Run_filter(hPdm, pResult+i*FRAME_LENGTH, pPDM+i*FRAME_LENGTH*2, 0, 0, 1);
 			}
 			gettimeofday(&tv, NULL);
 			end = (int64_t)tv.tv_sec * 1000  + tv.tv_usec/1000;
@@ -244,7 +244,7 @@ int single_main(const char *input, const char *output , int32_t channels)
 					pTmpPdm + PDM_PERIOD_BYTES_OUT * 2,
 					pTmpPdm + PDM_PERIOD_BYTES_OUT * 3 };
 				//	AGC Off
-				pdm_Run_filters(&pdm_st, pResult+i*FRAME_LENGTH*channels, (int32_t**)PPtr, 4, 0, 0, 0);
+				pdm_Run_filters(hPdm, pResult+i*FRAME_LENGTH*channels, (int32_t**)PPtr, 4, 0, 0, 0);
 				pTmpPdm += 8192;
 			}
 			gettimeofday(&tv, NULL);
@@ -271,7 +271,7 @@ int single_main(const char *input, const char *output , int32_t channels)
 					pTmpPdm + PDM_PERIOD_BYTES_OUT * 2,
 					pTmpPdm + PDM_PERIOD_BYTES_OUT * 3 };
 				//	AGC Off
-				pdm_Run_filters(&pdm_st, pResult+i*FRAME_LENGTH*channels, (int32_t**)PPtr, 4, 0, 0, 1);
+				pdm_Run_filters(hPdm, pResult+i*FRAME_LENGTH*channels, (int32_t**)PPtr, 4, 0, 0, 1);
 				pTmpPdm += 8192;
 			}
 			gettimeofday(&tv, NULL);
@@ -282,6 +282,7 @@ int single_main(const char *input, const char *output , int32_t channels)
 			delete hWave;
 		}
 	}
+	pdm_Deinit(hPdm);
 
 	printf("done\n");
 

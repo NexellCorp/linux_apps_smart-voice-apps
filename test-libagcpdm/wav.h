@@ -360,7 +360,6 @@ class CWAVFile {
 	bool m_bWavFormat;
 	long long m_SavePeriodBytes;
 	long long m_SavePeriodAvail;
-	pthread_mutex_t m_Lock;
 };
 
 #if 0
