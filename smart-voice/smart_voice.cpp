@@ -292,7 +292,7 @@ __reset:
 	int r_offs = 0;
 	ReSampleContext *Resampler =
 		audio_resample_init(s_ch, i_ch,
-			static_cast<float>(s_rate), static_cast<float>(i_rate));
+			static_cast<float>(s_rate), static_cast<float>(i_rate), PCM_FMT_16BIT);
 	assert(Resampler);
 
 	S->ClearBuffer();
