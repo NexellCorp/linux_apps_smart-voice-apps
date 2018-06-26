@@ -76,12 +76,16 @@ void av_freep(void *arg);
 typedef signed char			int8_t;
 typedef	signed short int	int16_t;
 typedef signed int			int32_t;
+#ifdef __INT64_TYPE
 typedef	signed long long	int64_t;
+#endif
 
 typedef unsigned char		uint8_t;
 typedef	unsigned short int	uint16_t;
 typedef unsigned int		uint32_t;
+#ifdef __UINT64_TYPE
 typedef unsigned long long	uint64_t;
+#endif
 
 #ifndef M_PI
 #define M_PI	3.14159265358979323846
@@ -110,7 +114,10 @@ typedef unsigned long long	uint64_t;
 #define FFMAX(a,b) ((a) > (b) ? (a) : (b))
 #define FFMIN(a,b) ((a) > (b) ? (b) : (a))
 
-
+/* input format */
+#define PCM_FMT_16BIT	1
+#define PCM_FMT_24BIT	2
+#define PCM_FMT_32BIT	3
 
 /* resample.c */
 
@@ -120,8 +127,8 @@ struct AVResampleContext;
 typedef struct ReSampleContext ReSampleContext;
 
 ReSampleContext *audio_resample_init(int output_channels, int input_channels,
-                                     float output_rate, float input_rate);
-int audio_resample(ReSampleContext *s, short *output, short *input, int nb_samples);
+                                     float output_rate, float input_rate, int input_fmt);
+int audio_resample(ReSampleContext *s, short *output, void *input, int nb_samples);
 void audio_resample_close(ReSampleContext *s);
 
 struct AVResampleContext *av_resample_init(int out_rate, int in_rate, int filter_length, int log2_phase_count, int linear, double cutoff);

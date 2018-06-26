@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include "resample.h"
 //#include "dsputil.h"
 
@@ -550,12 +551,12 @@ void av_build_filter(FELEM *filter, double factor, int tap_count, int phase_coun
     int ph, i;
     //double x, y, w, tab[tap_count];
     //double x, y, w, *tab;
-	double x, y, w, tab[128];
+	double x, y, w, tab[1024];
     const int center= (tap_count-1)/2;
 
 	//tab = MES_MALLOC( tap_count * sizeof(double) );
 	//MES_ASSERT( tab != CNULL );
-	for( i=0 ; i<128 ; i++ )	tab[i] = 0;
+	for( i=0 ; i<1024 ; i++ )	tab[i] = 0;
 
     /* if upsampling, only need to interpolate, no filter */
     if (factor > 1.0)
@@ -642,7 +643,7 @@ void av_build_filter(FELEM *filter, double factor, int tap_count, int phase_coun
             maxsf= FFMAX(maxsf, sf);
             minsf= FFMIN(minsf, sf);
             if(i%11==0){
-                av_log(NULL, AV_LOG_ERROR, "i:%4d ss:%f ff:%13.6e-%13.6e sf:%13.6e-%13.6e\n", i, ss, maxff, minff, maxsf, minsf);
+                //printf("i:%4d ss:%f ff:%13.6e-%13.6e sf:%13.6e-%13.6e\n", i, ss, maxff, minff, maxsf, minsf);
                 minff=minsf= 2;
                 maxff=maxsf= -2;
             }
